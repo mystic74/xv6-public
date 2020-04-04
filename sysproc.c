@@ -42,8 +42,11 @@ sys_getpid(void)
   return myproc()->pid;
 }
 
-int
-sys_sbrk(void)
+int sys_mysize(void)
+{
+  return myproc()->sz;
+}
+
 {
   int addr;
   int n;
