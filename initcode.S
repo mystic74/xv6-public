@@ -14,7 +14,7 @@ start:
   movl $SYS_exec, %eax
   int $T_SYSCALL
 
-# for(;;) exit();
+# TomR Comment: for(;;) exit(int);
 exit:
   movl $SYS_exit, %eax
   int $T_SYSCALL
