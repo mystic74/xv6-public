@@ -42,6 +42,12 @@ int sys_getpid(void)
 {
   return myproc()->pid;
 }
+//for task 4.2
+int sys_set_ps_priority(int priority)
+{
+  myproc()->ps_priority = priority;
+  return 0; //return the priority?
+}
 
 int sys_mysize(void)
 {
