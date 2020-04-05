@@ -61,6 +61,7 @@ struct proc
   struct inode *cwd;          // Current directory
   char name[16];              // Process name (debugging)
   int status;
+  /*test for git/*
 };
 
 // Process memory is laid out contiguously, low addresses first:
