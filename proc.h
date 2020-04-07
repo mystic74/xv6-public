@@ -61,9 +61,8 @@ struct proc
   struct inode *cwd;          // Current directory
   char name[16];              // Process name (debugging)
   int status;
-  long long accumulator;      
+  long long accumulator; // Added for task 4.2
   int ps_priority;
-
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -71,3 +70,7 @@ struct proc
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+#define SP_rr 0
+#define SP_ps 1
+#define SP_cfs 2

@@ -7,6 +7,10 @@
 #include "proc.h"
 #include "spinlock.h"
 
+void sp_ps(struct cpu *c);
+void sp_rr(struct cpu *c);
+void sp_cfs(struct cpu *c);
+
 struct
 {
   struct spinlock lock;
@@ -15,11 +19,19 @@ struct
 
 static struct proc *initproc;
 
+void (*sched_arr[])(struct cpu *c) =
+    {
+        [SP_rr] sp_rr,
+        [SP_ps] sp_ps,
+        [SP_cfs] sp_cfs,
+};
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+
+static int current_sched_stg = 0;
 
 void pinit(void)
 {
@@ -30,6 +42,40 @@ void pinit(void)
 int cpuid()
 {
   return mycpu() - cpus;
+}
+void sp_ps(struct cpu *c)
+{
+  (void)c;
+}
+void sp_cfs(struct cpu *c)
+{
+  (void)c;
+}
+void sp_rr(struct cpu *c)
+{
+  struct proc *p;
+  // Loop over process table looking for process to run.
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state != RUNNABLE)
+      continue;
+
+    // Switch to chosen process.  It is the process's job
+    // to release ptable.lock and then reacquire it
+    // before jumping back to us.
+    c->proc = p;
+    switchuvm(p);
+    p->state = RUNNING;
+
+    swtch(&(c->scheduler), p->context);
+    switchkvm();
+
+    // Process is done running for now.
+    // It should have changed its p->state before coming back.
+    c->proc = 0;
+  }
+  release(&ptable.lock);
 }
 
 // Must be called with interrupts disabled to avoid the caller being
@@ -338,7 +384,6 @@ int wait(int *status)
 //      via swtch back to the scheduler.
 void scheduler(void)
 {
-  struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
 
@@ -346,29 +391,7 @@ void scheduler(void)
   {
     // Enable interrupts on this processor.
     sti();
-
-    // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    {
-      if (p->state != RUNNABLE)
-        continue;
-
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-    }
-    release(&ptable.lock);
+    sched_arr[current_sched_stg](c);
   }
 }
 
