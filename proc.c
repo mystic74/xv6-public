@@ -11,6 +11,20 @@ void sp_ps(struct cpu *c);
 void sp_rr(struct cpu *c);
 void sp_cfs(struct cpu *c);
 
+/* Task 4 : Adding a function for the creation of a new proc
+*           Now we can control the priority from birth.
+*/
+void new_born_rr(struct proc *p);
+void new_born_ps(struct proc *p);
+void new_born_cfs(struct proc *p);
+
+void (*new_born_sched[])(struct proc *p) =
+    {
+        [SP_rr] new_born_rr,
+        [SP_ps] new_born_ps,
+        [SP_cfs] new_born_cfs,
+};
+
 struct
 {
   struct spinlock lock;
@@ -31,7 +45,7 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
-static int current_sched_stg = 0;
+static int current_sched_stg = 1;
 
 void pinit(void)
 {
@@ -43,17 +57,152 @@ int cpuid()
 {
   return mycpu() - cpus;
 }
+
+/***
+ * For round robin theres no need for a function.
+ */
+
+void new_born_rr(struct proc *p)
+{
+  (void)p;
+}
+/**
+ * @brief a utilty function that helps out.
+ *        Gathers the minimal accumulator value from either 
+ *        all existing processes, or just the ones that are
+ *        in a runnable state.
+ * 
+ * @param runnable - if 1, return the min accum for just the runnable processes.
+ *                   if 0, return the min for all existing procs.
+ * @return int - The min accum value.
+ */
+int min_accum(int runnable)
+{
+  long long min_acco = __LONG_LONG_MAX__;
+  acquire(&ptable.lock);
+  struct proc *index;
+  for (index = ptable.proc; index < &ptable.proc[NPROC]; index++)
+  {
+    if ((runnable) && (index->state != RUNNABLE))
+      continue;
+
+    if ((index->state == UNUSED) || (index->state == ZOMBIE) || (index->state == EMBRYO))
+      continue;
+
+    if (index->accumulator < min_acco)
+    {
+      min_acco = index->accumulator;
+    }
+  }
+  release(&ptable.lock);
+  if (min_acco == __LONG_LONG_MAX__)
+  {
+    return 0;
+  }
+
+  return min_acco;
+}
+/**
+ * @brief This function handles the process creation for
+ *        the simple priority schedualing for task 4.2
+ *        
+ *        NOT USED FOR NOW, NEEDS TO BE.
+ * 
+ * @param p - The process just created 
+ */
+
+void new_born_ps(struct proc *p)
+{
+  long long min_acco = __LONG_LONG_MAX__;
+  struct proc *index;
+  if (p->state == EMBRYO)
+  {
+    p->ps_priority = 5;
+  }
+  // cprintf("New Proc! \n");
+
+  // TomR : Lock this?
+  for (index = ptable.proc; index < &ptable.proc[NPROC]; index++)
+  {
+    if (index->state != RUNNABLE)
+      continue;
+
+    if (index->accumulator < min_acco)
+    {
+      p = index;
+      min_acco = index->accumulator;
+    }
+  }
+
+  if (min_acco == __LONG_LONG_MAX__)
+  {
+    // cprintf("only proc \n");
+    p->accumulator = 0;
+  }
+
+  p->accumulator = min_acco;
+}
+// Not implemented yet.
+void new_born_cfs(struct proc *p)
+{
+}
+/**
+ * @brief This function does the schedualing for the priority queue
+ *        for task 4.2
+ *        
+ *        The idea behind the current implementation is that we gather
+ *        the minimum value for the accumulation and find the first process
+ *        That is both in a runnable state, and has that value.
+ * 
+ * @param c - The cpu on which were running. 
+ */
 void sp_ps(struct cpu *c)
 {
-  (void)c;
+  long long min_acco = __LONG_LONG_MAX__;
+  struct proc *index;
+  struct proc *p;
+  (void)min_acco;
+  (void)index;
+
+  min_acco = min_accum(1);
+  // Loop over process table looking for process to run.
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if ((p->state != RUNNABLE) || (min_acco != p->accumulator))
+      continue;
+
+    // Switch to chosen process.  It is the process's job
+    // to release ptable.lock and then reacquire it
+    // before jumping back to us.
+    c->proc = p;
+    switchuvm(p);
+    p->state = RUNNING;
+
+    swtch(&(c->scheduler), p->context);
+    switchkvm();
+    p->accumulator += p->ps_priority;
+    // Process is done running for now.
+    // It should have changed its p->state before coming back.
+    c->proc = 0;
+  }
+  release(&ptable.lock);
 }
+// Not impelemnted yet, task 4.3
 void sp_cfs(struct cpu *c)
 {
   (void)c;
 }
+/**
+ * @brief Task 4.1 - Round robin
+ *        Seperated the round robin version to a function.
+ * 
+ * @param c - The cpu on which were running
+ */
 void sp_rr(struct cpu *c)
 {
   struct proc *p;
+
   // Loop over process table looking for process to run.
   acquire(&ptable.lock);
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -138,6 +287,10 @@ found:
   p->pid = nextpid++;
 
   release(&ptable.lock);
+  // TODO : Call the new_born function, wasn't working
+  // earlier, but we should do it that way.
+  p->ps_priority = 5;
+  p->accumulator = min_accum(0);
 
   // Allocate kernel stack.
   if ((p->kstack = kalloc()) == 0)
@@ -498,9 +651,15 @@ wakeup1(void *chan)
 {
   struct proc *p;
 
+  // TODO TomR : we somehow need to again call the new_born.
+  // or seperated the min_accum as well? don't know yet.
+
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if (p->state == SLEEPING && p->chan == chan)
+    {
+      p->accumulator = min_accum(0);
       p->state = RUNNABLE;
+    }
 }
 
 // Wake up all processes sleeping on chan.
