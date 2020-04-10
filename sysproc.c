@@ -49,7 +49,7 @@ int sys_set_ps_priority(int priority)
   return 0; 
 }
 //for task 4.3
-int set_cfs_priority(int priority)
+int sys_set_cfs_priority(int priority)
 {
   if (priority>3 || priority<1)
     return 1;
