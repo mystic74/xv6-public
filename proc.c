@@ -657,7 +657,8 @@ wakeup1(void *chan)
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if (p->state == SLEEPING && p->chan == chan)
     {
-      p->accumulator = min_accum(0);
+      // Adding this crashes everything.
+      //  p->accumulator = min_accum(0);
       p->state = RUNNABLE;
     }
 }
