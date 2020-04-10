@@ -43,7 +43,7 @@ int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
-static void wakeup1(void *chan, long long accu);
+static void wakeup1(void *chan);
 
 static int current_sched_stg = 1;
 
@@ -67,6 +67,35 @@ void new_born_rr(struct proc *p)
   (void)p;
 }
 
+/*for task 4.3 - same as long long min_accum(int runnable) 
+with different calculation*/
+
+/*long long min_run_time_ratio(int runnable)
+{
+  long long min_ratio = __LONG_LONG_MAX__;
+  acquire(&ptable.lock);
+  struct proc *index;
+  for (index = ptable.proc; index < &ptable.proc[NPROC]; index++)
+  {
+    if ((runnable) && (index->state != RUNNABLE))
+      continue;
+
+    if ((index->state == UNUSED) || (index->state == ZOMBIE) || (index->state == EMBRYO))
+      continue;
+    long long ratio = (index -> rtime * index -> cfs_priority)/(index->rtime+index -> stime + index-> retime);
+    if (ratio < min_ratio)
+    {
+      min_ratio = ratio;
+    }
+  }
+  release (&ptable.lock);
+  if (min_ratio == __LONG_LONG_MAX__)
+  {
+    return 0;
+  }
+
+  return min_ratio;
+}*/
 /**
  * @brief a utilty function that helps out.
  *        Gathers the minimal accumulator value from either 
@@ -77,7 +106,6 @@ void new_born_rr(struct proc *p)
  *                   if 0, return the min for all existing procs.
  * @return int - The min accum value.
  */
-// TODO Changed to long long
 long long min_accum(int runnable)
 {
   long long min_acco = __LONG_LONG_MAX__;
@@ -174,8 +202,39 @@ void sp_ps(struct cpu *c)
 // Not impelemnted yet, task 4.3
 void sp_cfs(struct cpu *c)
 {
-  (void)c;
+  double min_ratio =__DBL_MAX__;
+  struct proc *index;
+  struct proc *p;
+  int found = 0;
+
+  // Loop over process table looking for process to run.
+  acquire(&ptable.lock);
+  for (index = ptable.proc; index < &ptable.proc[NPROC]; index++)
+  {
+    if (index->state != RUNNABLE)
+      continue;  
+    double ratio = (index -> rtime * index -> cfs_priority)/(index->rtime+index -> stime + index-> retime);
+    if (ratio < min_ratio)
+    {
+      min_ratio = ratio;
+      p = index;
+      found = 1;
+    }
+  }
+  if (found == 1)
+  {
+    c->proc = p;
+    switchuvm(p);
+    p->state = RUNNING;
+    swtch(&(c->scheduler), p->context);
+    switchkvm();
+    // Process is done running for now.
+    // It should have changed its p->state before coming back.
+    c->proc = 0;
+  }
+  release (&ptable.lock);
 }
+
 /**
  * @brief Task 4.1 - Round robin
  *        Seperated the round robin version to a function.
@@ -441,7 +500,7 @@ void exit(int status)
   acquire(&ptable.lock);
 
   // Parent might be sleeping in wait().
-  wakeup1(curproc->parent, -1);
+  wakeup1(curproc->parent);
 
   // Pass abandoned children to init.
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -450,7 +509,7 @@ void exit(int status)
     {
       p->parent = initproc;
       if (p->state == ZOMBIE)
-        wakeup1(initproc, -1);
+        wakeup1(initproc);
     }
   }
 
@@ -631,7 +690,7 @@ void sleep(void *chan, struct spinlock *lk)
 // Wake up all processes sleeping on chan.
 // The ptable lock must be held.
 static void
-wakeup1(void *chan, long long accu)
+wakeup1(void *chan)
 {
   struct proc *p;
 
@@ -643,11 +702,6 @@ wakeup1(void *chan, long long accu)
     {
       // Adding this crashes everything.
       //  p->accumulator = min_accum(0);
-
-      if (accu > 0)
-      {
-        p->accumulator = accu;
-      }
       p->state = RUNNABLE;
     }
 }
@@ -655,9 +709,8 @@ wakeup1(void *chan, long long accu)
 // Wake up all processes sleeping on chan.
 void wakeup(void *chan)
 {
-  long long min_acco = min_accum(0);
   acquire(&ptable.lock);
-  wakeup1(chan, min_acco);
+  wakeup1(chan);
   release(&ptable.lock);
 }
 

@@ -46,7 +46,26 @@ int sys_getpid(void)
 int sys_set_ps_priority(int priority)
 {
   myproc()->ps_priority = priority;
-  return 0; //return the priority?
+  return 0; 
+}
+//for task 4.3
+int set_cfs_priority(int priority)
+{
+  if (priority>3 || priority<1)
+    return 1;
+  if (priority==1)
+  {
+    myproc()->cfs_priority = 0.75;
+  }
+  if (priority == 2)
+  {
+      myproc()->cfs_priority = 1;    
+  }
+  if (priority == 3)
+  {
+    myproc()->cfs_priority = 1.25;
+  }
+  return 0;
 }
 
 int sys_mysize(void)

@@ -63,6 +63,11 @@ struct proc
   int status;
   long long accumulator; // Added for task 4.2
   int ps_priority;
+  double cfs_priority;      //decay factor
+  long long rtime;             //time process was in running state.
+  long long stime;             //time process was in sleeping state.
+  long long retime;            //time process was in ready
+
 };
 
 // Process memory is laid out contiguously, low addresses first:

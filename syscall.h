@@ -22,3 +22,4 @@
 #define SYS_close 21
 #define SYS_mysize 22
 #define SYS_set_ps_priority 23
+#define SYS_set_cfs_priority 24
