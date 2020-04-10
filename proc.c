@@ -43,7 +43,7 @@ int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
 
-static void wakeup1(void *chan);
+static void wakeup1(void *chan, long long accu);
 
 static int current_sched_stg = 1;
 
@@ -441,7 +441,7 @@ void exit(int status)
   acquire(&ptable.lock);
 
   // Parent might be sleeping in wait().
-  wakeup1(curproc->parent);
+  wakeup1(curproc->parent, -1);
 
   // Pass abandoned children to init.
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -450,7 +450,7 @@ void exit(int status)
     {
       p->parent = initproc;
       if (p->state == ZOMBIE)
-        wakeup1(initproc);
+        wakeup1(initproc, -1);
     }
   }
 
@@ -631,7 +631,7 @@ void sleep(void *chan, struct spinlock *lk)
 // Wake up all processes sleeping on chan.
 // The ptable lock must be held.
 static void
-wakeup1(void *chan)
+wakeup1(void *chan, long long accu)
 {
   struct proc *p;
 
@@ -643,6 +643,11 @@ wakeup1(void *chan)
     {
       // Adding this crashes everything.
       //  p->accumulator = min_accum(0);
+
+      if (accu > 0)
+      {
+        p->accumulator = accu;
+      }
       p->state = RUNNABLE;
     }
 }
@@ -650,8 +655,9 @@ wakeup1(void *chan)
 // Wake up all processes sleeping on chan.
 void wakeup(void *chan)
 {
+  long long min_acco = min_accum(0);
   acquire(&ptable.lock);
-  wakeup1(chan);
+  wakeup1(chan, min_acco);
   release(&ptable.lock);
 }
 
