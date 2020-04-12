@@ -30,6 +30,9 @@ void idtinit(void)
   lidt(idt, sizeof(idt));
 }
 
+
+
+
 //PAGEBREAK: 41
 void trap(struct trapframe *tf)
 {
@@ -51,6 +54,7 @@ void trap(struct trapframe *tf)
     {
       acquire(&tickslock);
       ticks++;
+      update_times();    //task 4.5: updates times when clock tick accurs
       wakeup(&ticks);
       release(&tickslock);
     }

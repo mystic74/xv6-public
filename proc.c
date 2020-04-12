@@ -713,6 +713,31 @@ void wakeup(void *chan)
   wakeup1(chan);
   release(&ptable.lock);
 }
+//task 4.5 : updates stime, rtime, retimr for each process whenever a clock tick accurs
+void update_times(void)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state == RUNNING)
+    {
+      p->rtime ++;
+      continue;
+    }
+    if (p->state  == SLEEPING)
+    {
+        p->stime ++;
+        continue;
+    }
+    if (p->state == RUNNABLE)
+    {
+          p->retime ++;
+          continue;
+    }
+  }
+  release(&ptable.lock);
+}
 
 // Kill the process with the given pid.
 // Process won't exit until it returns

@@ -120,6 +120,8 @@ void userinit(void);
 int wait(int *);
 void wakeup(void *);
 void yield(void);
+void update_times(void); //for task 4.5
+
 
 // swtch.S
 void swtch(struct context **, struct context *);
