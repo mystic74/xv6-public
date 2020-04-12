@@ -1,3 +1,4 @@
+
 // Per-CPU state
 struct cpu
 {
@@ -14,6 +15,8 @@ struct cpu
 
 extern struct cpu cpus[NCPU];
 extern int ncpu;
+
+
 
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.
@@ -69,6 +72,13 @@ struct proc
   int stime;             //time process was in sleeping state.
   int retime;            //time process was in ready
 
+};
+
+struct perf {
+int ps_priority;
+int stime;
+int retime;
+int rtime;
 };
 
 // Process memory is laid out contiguously, low addresses first:

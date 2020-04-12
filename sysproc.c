@@ -68,6 +68,16 @@ int sys_set_cfs_priority(int priority)
   return 0;
 }
 
+//for task 4.5
+int sys_proc_info(struct perf* performance)
+{
+  performance -> ps_priority = myproc()->ps_priority;
+  performance -> rtime = myproc()->rtime;
+  performance -> stime = myproc()->stime;
+  performance -> retime = myproc()->retime;
+  return 0;
+}
+
 int sys_mysize(void)
 {
   return myproc()->sz;

@@ -23,3 +23,4 @@
 #define SYS_mysize 22
 #define SYS_set_ps_priority 23
 #define SYS_set_cfs_priority 24
+#define SYS_proc_info 25

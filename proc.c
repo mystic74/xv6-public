@@ -67,35 +67,6 @@ void new_born_rr(struct proc *p)
   (void)p;
 }
 
-/*for task 4.3 - same as long long min_accum(int runnable) 
-with different calculation*/
-
-/*long long min_run_time_ratio(int runnable)
-{
-  long long min_ratio = __LONG_LONG_MAX__;
-  acquire(&ptable.lock);
-  struct proc *index;
-  for (index = ptable.proc; index < &ptable.proc[NPROC]; index++)
-  {
-    if ((runnable) && (index->state != RUNNABLE))
-      continue;
-
-    if ((index->state == UNUSED) || (index->state == ZOMBIE) || (index->state == EMBRYO))
-      continue;
-    long long ratio = (index -> rtime * index -> cfs_priority)/(index->rtime+index -> stime + index-> retime);
-    if (ratio < min_ratio)
-    {
-      min_ratio = ratio;
-    }
-  }
-  release (&ptable.lock);
-  if (min_ratio == __LONG_LONG_MAX__)
-  {
-    return 0;
-  }
-
-  return min_ratio;
-}*/
 /**
  * @brief a utilty function that helps out.
  *        Gathers the minimal accumulator value from either 
@@ -448,6 +419,7 @@ int fork(void)
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  np->cfs_priority = curproc->cfs_priority;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
