@@ -334,7 +334,9 @@ found:
   // earlier, but we should do it that way.
   p->ps_priority = 5;
   p->accumulator = min_accum(0);
-
+  p->stime = 0;
+  p->retime = 0;
+  p->rtime = 0;
   // Allocate kernel stack.
   if ((p->kstack = kalloc()) == 0)
   {
