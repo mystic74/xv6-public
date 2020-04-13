@@ -66,7 +66,6 @@ void new_born_rr(struct proc *p)
 long long min_accum(int runnable)
 {
   long long min_acco = __LONG_LONG_MAX__;
-  acquire(&ptable.lock);
   struct proc *index;
   for (index = ptable.proc; index < &ptable.proc[NPROC]; index++)
   {
@@ -81,7 +80,7 @@ long long min_accum(int runnable)
       min_acco = index->accumulator;
     }
   }
-  release(&ptable.lock);
+
   if (min_acco == __LONG_LONG_MAX__)
   {
     return 0;
@@ -131,10 +130,11 @@ void sp_ps(struct cpu *c)
   (void)min_acco;
   (void)index;
 
-  min_acco = min_accum(1);
-
   // Loop over process table looking for process to run.
   acquire(&ptable.lock);
+
+  min_acco = min_accum(1);
+
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if ((p->state != RUNNABLE) || (min_acco != p->accumulator))
@@ -285,8 +285,6 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
 
-  release(&ptable.lock);
-
   // TODO : Call the new_born function, wasn't working
   // earlier, but we should do it that way.
   p->ps_priority = 5;
@@ -294,6 +292,9 @@ found:
   p->stime = 0;
   p->retime = 0;
   p->rtime = 0;
+
+  release(&ptable.lock);
+
   // Allocate kernel stack.
   if ((p->kstack = kalloc()) == 0)
   {
