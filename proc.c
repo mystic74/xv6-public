@@ -44,15 +44,6 @@ int cpuid()
   return mycpu() - cpus;
 }
 
-/***
- * For round robin theres no need for a function.
- */
-
-void new_born_rr(struct proc *p)
-{
-  (void)p;
-}
-
 /**
  * @brief a utilty function that helps out.
  *        Gathers the minimal accumulator value from either 
@@ -88,30 +79,7 @@ long long min_accum(int runnable)
 
   return min_acco;
 }
-/**
- * @brief This function handles the process creation for
- *        the simple priority schedualing for task 4.2
- *        
- *        NOT USED FOR NOW, NEEDS TO BE.
- * 
- * @param p - The process just created 
- */
 
-void new_born_ps(struct proc *p)
-{
-
-  if (p->state == EMBRYO)
-  {
-    p->ps_priority = 5;
-  }
-  // cprintf("New Proc! \n");
-
-  p->accumulator = min_accum(0);
-}
-// Not implemented yet.
-void new_born_cfs(struct proc *p)
-{
-}
 /**
  * @brief This function does the schedualing for the priority queue
  *        for task 4.2
