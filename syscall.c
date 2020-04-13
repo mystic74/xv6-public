@@ -103,6 +103,7 @@ extern int sys_mysize(void);
 extern int sys_set_ps_priority(void);
 extern int sys_set_cfs_priority(void);
 extern int sys_proc_info(void);
+extern int sys_set_policy(void);
 
 static int (*syscalls[])(void) = {
     [SYS_fork] sys_fork,
@@ -129,6 +130,7 @@ static int (*syscalls[])(void) = {
     [SYS_mysize] sys_mysize,
     [SYS_set_ps_priority] sys_set_ps_priority,
     [SYS_set_cfs_priority] sys_set_cfs_priority,
+    [SYS_set_policy] sys_set_policy,
     [SYS_proc_info] sys_proc_info,
 
 };

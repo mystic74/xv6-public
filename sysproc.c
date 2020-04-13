@@ -7,6 +7,8 @@
 #include "mmu.h"
 #include "proc.h"
 
+extern int current_sched_stg;
+
 int sys_fork(void)
 {
   return fork();
@@ -27,6 +29,24 @@ int sys_wait(void)
   if (argint(0, &status) < 0)
     return -1;
   return wait((int *)status);
+}
+
+int sys_set_policy(void)
+{
+  int policy;
+  if (argint(0, &policy) < 0)
+  {
+    return -1;
+  }
+
+  if ((policy >= number_of_polices) || (policy < 0))
+  {
+    return -1;
+  }
+
+  current_sched_stg = policy;
+
+  return 0;
 }
 
 int sys_kill(void)
@@ -52,7 +72,7 @@ int sys_set_ps_priority(void)
     return -1;
 
   myproc()->ps_priority = priority;
-  return 0; 
+  return 0;
 }
 //for task 4.3
 int sys_set_cfs_priority(void)
@@ -70,7 +90,7 @@ int sys_set_cfs_priority(void)
   }
   if (priority == 2)
   {
-      myproc()->cfs_priority = 1;    
+    myproc()->cfs_priority = 1;
   }
   if (priority == 3)
   {

@@ -122,7 +122,6 @@ void wakeup(void *);
 void yield(void);
 void update_times(void); //for task 4.5
 
-
 // swtch.S
 void swtch(struct context **, struct context *);
 
@@ -190,3 +189,13 @@ void clearpteu(pde_t *pgdir, char *uva);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
+
+enum
+{
+    sched_type_round_robin = 0,
+    sched_type_priority,
+    sched_type_cfs,
+    number_of_polices
+} sched_type_enum;
+
+int sched_type;

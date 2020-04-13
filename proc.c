@@ -31,7 +31,7 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
-static int current_sched_stg = 1;
+int current_sched_stg = 1;
 
 void pinit(void)
 {
@@ -127,7 +127,7 @@ void sp_ps(struct cpu *c)
 // Not impelemnted yet, task 4.3
 void sp_cfs(struct cpu *c)
 {
-  double min_ratio =__DBL_MAX__;
+  double min_ratio = __DBL_MAX__;
   struct proc *index;
   struct proc *p;
   int found = 0;
@@ -137,8 +137,8 @@ void sp_cfs(struct cpu *c)
   for (index = ptable.proc; index < &ptable.proc[NPROC]; index++)
   {
     if (index->state != RUNNABLE)
-      continue;  
-    double ratio = (index -> rtime * index -> cfs_priority)/(index->rtime+index -> stime + index-> retime);
+      continue;
+    double ratio = (index->rtime * index->cfs_priority) / (index->rtime + index->stime + index->retime);
     if (ratio < min_ratio)
     {
       min_ratio = ratio;
@@ -157,7 +157,7 @@ void sp_cfs(struct cpu *c)
     // It should have changed its p->state before coming back.
     c->proc = 0;
   }
-  release (&ptable.lock);
+  release(&ptable.lock);
 }
 
 /**
@@ -615,6 +615,19 @@ void sleep(void *chan, struct spinlock *lk)
   }
 }
 
+inline void update_waking_proc(void *chan)
+{
+  struct proc *p;
+
+  int curr_accu = min_accum(1);
+
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if (p->state == SLEEPING && p->chan == chan)
+    {
+      p->accumulator = curr_accu;
+    }
+}
+
 //PAGEBREAK!
 // Wake up all processes sleeping on chan.
 // The ptable lock must be held.
@@ -623,14 +636,9 @@ wakeup1(void *chan)
 {
   struct proc *p;
 
-  // TODO TomR : we somehow need to again call the new_born.
-  // or seperated the min_accum as well? don't know yet.
-
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if (p->state == SLEEPING && p->chan == chan)
     {
-      // Adding this crashes everything.
-      //  p->accumulator = min_accum(0);
       p->state = RUNNABLE;
     }
 }
@@ -640,6 +648,7 @@ void wakeup(void *chan)
 {
   acquire(&ptable.lock);
   wakeup1(chan);
+  update_waking_proc(chan);
   release(&ptable.lock);
 }
 //task 4.5 : updates stime, rtime, retimr for each process whenever a clock tick accurs
@@ -651,18 +660,18 @@ void update_times(void)
   {
     if (p->state == RUNNING)
     {
-      p->rtime ++;
+      p->rtime++;
       continue;
     }
-    if (p->state  == SLEEPING)
+    if (p->state == SLEEPING)
     {
-        p->stime ++;
-        continue;
+      p->stime++;
+      continue;
     }
     if (p->state == RUNNABLE)
     {
-          p->retime ++;
-          continue;
+      p->retime++;
+      continue;
     }
   }
   release(&ptable.lock);
