@@ -11,20 +11,6 @@ void sp_ps(struct cpu *c);
 void sp_rr(struct cpu *c);
 void sp_cfs(struct cpu *c);
 
-/* Task 4 : Adding a function for the creation of a new proc
-*           Now we can control the priority from birth.
-*/
-void new_born_rr(struct proc *p);
-void new_born_ps(struct proc *p);
-void new_born_cfs(struct proc *p);
-
-void (*new_born_sched[])(struct proc *p) =
-    {
-        [SP_rr] new_born_rr,
-        [SP_ps] new_born_ps,
-        [SP_cfs] new_born_cfs,
-};
-
 struct
 {
   struct spinlock lock;
