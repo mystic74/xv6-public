@@ -42,18 +42,29 @@ int sys_getpid(void)
 {
   return myproc()->pid;
 }
+
 //for task 4.2
-int sys_set_ps_priority(int priority)
+int sys_set_ps_priority(void)
 {
+  int priority;
+
+  if (argint(0, &priority) < 0)
+    return -1;
+
   myproc()->ps_priority = priority;
   return 0; 
 }
 //for task 4.3
-int sys_set_cfs_priority(int priority)
+int sys_set_cfs_priority(void)
 {
-  if (priority>3 || priority<1)
+  int priority;
+
+  if (argint(0, &priority) < 0)
+    return -1;
+
+  if (priority > 3 || priority < 1)
     return 1;
-  if (priority==1)
+  if (priority == 1)
   {
     myproc()->cfs_priority = 0.75;
   }
@@ -69,12 +80,16 @@ int sys_set_cfs_priority(int priority)
 }
 
 //for task 4.5
-int sys_proc_info(struct perf* performance)
+int sys_proc_info(void)
 {
-  performance -> ps_priority = myproc()->ps_priority;
-  performance -> rtime = myproc()->rtime;
-  performance -> stime = myproc()->stime;
-  performance -> retime = myproc()->retime;
+  struct perf performance;
+  if (argptr(0, (void *)&performance, sizeof(performance)) < 0)
+    return -1;
+
+  performance.ps_priority = myproc()->ps_priority;
+  performance.rtime = myproc()->rtime;
+  performance.stime = myproc()->stime;
+  performance.retime = myproc()->retime;
   return 0;
 }
 
