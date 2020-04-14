@@ -31,7 +31,7 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
-int current_sched_stg = 1;
+int current_sched_stg = 2;
 
 void pinit(void)
 {

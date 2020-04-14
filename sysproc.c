@@ -102,14 +102,14 @@ int sys_set_cfs_priority(void)
 //for task 4.5
 int sys_proc_info(void)
 {
-  struct perf performance;
-  if (argptr(0, (void *)&performance, sizeof(performance)) < 0)
+  struct perf *performance;
+  if (argptr(0, (char **)&performance, sizeof(performance)) < 0)
     return -1;
 
-  performance.ps_priority = myproc()->ps_priority;
-  performance.rtime = myproc()->rtime;
-  performance.stime = myproc()->stime;
-  performance.retime = myproc()->retime;
+  performance->ps_priority = myproc()->ps_priority;
+  performance->rtime = myproc()->rtime;
+  performance->stime = myproc()->stime;
+  performance->retime = myproc()->retime;
   return 0;
 }
 
