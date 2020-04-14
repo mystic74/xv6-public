@@ -1,5 +1,7 @@
 struct stat;
 struct rtcdate;
+struct perf;
+
 
 // system calls
 int fork(void);
@@ -27,6 +29,7 @@ int mysize(void);
 int set_ps_priority(int);
 int set_cfs_priority(int);
 int set_policy(int);
+int proc_info(struct perf *);
 
 // ulib.c
 int stat(const char *, struct stat *);
