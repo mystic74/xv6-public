@@ -16,13 +16,9 @@ void dummy_loop()
 
     sleep(uptime_digit);
     proc_info(performance);
-    /*printf(1, "PID: %d\n", getpid());
-    printf(1, "PS_PRIORITY: %d\n", performance->ps_priority);
-    printf(1, "STIME :%d\n", performance->stime);
-    printf(1, "RETIME :%d\n", performance->retime);
-    printf(1, "RTIME :%d\n", performance->rtime);*/
 
-    printf(1, "PID  : %d, ps_priority :%d, stime : %d, retime :%d, rtime : %d \n\n",
+    printf(1, "PID  PS_PRIORITY  STIME  RETIME  RTIME \n");
+    printf(1, "%d    %d            %d     %d      %d\n",
            getpid(), performance->ps_priority, performance->stime, performance->retime, performance->rtime);
     free(performance);
     exit(0);

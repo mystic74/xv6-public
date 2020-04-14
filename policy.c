@@ -5,14 +5,16 @@
 
 int main(int argc, char *argv[])
 {
+    char *polic_array[3]={"Default Policy", "Priority Policy", "CFS Policy"};
     int rVal;
     if (argc != 2)
         exit(1);
-    printf(1, "Changing policy to %s\n", argv[1]);
+    int policy_num = atoi(argv[1]);
+  
     rVal = set_policy(atoi(argv[1]));
     if (rVal == 0)
     {
-        printf(1, "%s", "Policy has been successfully changed to");
+        printf(1, "Policy has been successfully changed to %s\n", polic_array[policy_num]);
     }
     else
     {
