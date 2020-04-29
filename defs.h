@@ -152,6 +152,7 @@ char*           strncpy(char*, const char*, int);
 int             argint(int, int*);
 int             argptr(int, char**, int);
 int             argstr(int, char**);
+uint            sigprocmask (uint);
 int             fetchint(uint, int*);
 int             fetchstr(uint, char**);
 void            syscall(void);

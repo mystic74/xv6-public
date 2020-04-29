@@ -81,6 +81,15 @@ argstr(int n, char **pp)
     return -1;
   return fetchstr(addr, pp);
 }
+/*task 2.1.3 updating the process signal mask*/
+uint
+sigprocmask (uint sigmask)
+{
+  struct proc *curproc = myproc();
+  uint old_mask = curproc -> signal_mask;
+  curproc -> signal_mask = sigmask;
+  return old_mask;
+}
 
 extern int sys_chdir(void);
 extern int sys_close(void);

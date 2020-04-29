@@ -232,6 +232,15 @@ fork(void)
 
   np->state = RUNNABLE;
 
+  /*When a process is being created,
+   it will inherit the parent’s signal mask and signal handlers*/
+
+   np->signal_mask= curproc->signal_mask;
+   for (i=0; i<32;i++)
+   {
+    np->signals_handlers[i] = curproc->signals_handlers[i];
+   }
+
   release(&ptable.lock);
 
   return pid;
