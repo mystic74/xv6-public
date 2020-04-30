@@ -81,15 +81,6 @@ argstr(int n, char **pp)
     return -1;
   return fetchstr(addr, pp);
 }
-/*task 2.1.3 updating the process signal mask*/
-uint
-sigprocmask (uint sigmask)
-{
-  struct proc *curproc = myproc();
-  uint old_mask = curproc -> signal_mask;
-  curproc -> signal_mask = sigmask;
-  return old_mask;
-}
 
 extern int sys_chdir(void);
 extern int sys_close(void);
@@ -112,6 +103,8 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+extern int sys_sigprocmask(void);
+extern int sys_sigaction(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -135,6 +128,8 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_sigprocmask] sys_sigprocmask,
+[SYS_sigaction] sys_sigaction,
 };
 
 void
