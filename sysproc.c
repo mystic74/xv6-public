@@ -89,3 +89,22 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+/*task 2.1.3 updating the process signal mask*/
+uint
+sys_sigprocmask (uint sigmask)
+{
+  struct proc *curproc = myproc();
+  uint old_mask = curproc -> signal_mask;
+  curproc -> signal_mask = sigmask;
+  return old_mask;
+}
+
+int
+sys_sigaction(void)
+{
+  // NOT IMPLEMENTED YET
+  // Gather args
+  return 0;
+}
