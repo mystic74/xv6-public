@@ -390,9 +390,10 @@ preempt(void)
   }
   close(pfds[0]);
   printf(1, "kill... ");
-  kill(pid1);
+  
+  /*kill(pid1);
   kill(pid2);
-  kill(pid3);
+  kill(pid3);*/
   printf(1, "wait... ");
   wait();
   wait();
@@ -428,10 +429,10 @@ void
 mem(void)
 {
   void *m1, *m2;
-  int pid, ppid;
+  int pid; //ppid;
 
   printf(1, "mem test\n");
-  ppid = getpid();
+  //ppid = getpid();
   if((pid = fork()) == 0){
     m1 = 0;
     while((m2 = malloc(10001)) != 0){
@@ -446,7 +447,7 @@ mem(void)
     m1 = malloc(1024*20);
     if(m1 == 0){
       printf(1, "couldn't allocate mem?!!\n");
-      kill(ppid);
+      //kill(ppid);
       exit();
     }
     free(m1);
@@ -1414,7 +1415,7 @@ forktest(void)
 void
 sbrktest(void)
 {
-  int fds[2], pid, pids[10], ppid;
+  int fds[2], pid, pids[10]; //ppid;
   char *a, *b, *c, *lastaddr, *oldbrk, *p, scratch;
   uint amt;
 
@@ -1495,7 +1496,7 @@ sbrktest(void)
 
   // can we read the kernel's memory?
   for(a = (char*)(KERNBASE); a < (char*) (KERNBASE+2000000); a += 50000){
-    ppid = getpid();
+    //ppid = getpid();
     pid = fork();
     if(pid < 0){
       printf(stdout, "fork failed\n");
@@ -1503,7 +1504,7 @@ sbrktest(void)
     }
     if(pid == 0){
       printf(stdout, "oops could read %x = %x\n", a, *a);
-      kill(ppid);
+      //kill(ppid);
       exit();
     }
     wait();
@@ -1532,7 +1533,7 @@ sbrktest(void)
   for(i = 0; i < sizeof(pids)/sizeof(pids[0]); i++){
     if(pids[i] == -1)
       continue;
-    kill(pids[i]);
+    //kill(pids[i]);
     wait();
   }
   if(c == (char*)0xffffffff){
@@ -1576,7 +1577,7 @@ validatetest(void)
     }
     sleep(0);
     sleep(0);
-    kill(pid);
+   // kill(pid);
     wait();
 
     // try to crash the kernel by passing in a bad string pointer

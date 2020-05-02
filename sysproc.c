@@ -119,16 +119,16 @@ sys_sigaction(void)
     return -1;
   if (signum > 31 || signum < 0||signum == 9/*SIGKILL*/ ||signum == 17/*SIGSTOP*/)
     return -1;
-  curproc -> signals_handlers[signum] = &act;
   if (oldact != (void*)NULL)
-    return oldact->sigmask;
+    oldact = curproc->signals_handlers[signum];
+  curproc -> signals_handlers[signum] = &act;  
   return 0;
 }
 
 int
 sys_sigret (void)
 {
-  sigret();
+  //sigret();
   return 1;
 }
 

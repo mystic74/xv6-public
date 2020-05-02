@@ -563,7 +563,7 @@ procdump(void)
     cprintf("\n");
   }
 }
-void sigret(void);
+//void sigret(void);
 
 int kill (int pid, int signum)
 {
