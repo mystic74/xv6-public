@@ -101,6 +101,15 @@ exec(char *path, char **argv)
   curproc->tf->esp = sp;
   switchuvm(curproc);
   freevm(oldpgdir);
+
+  for (i=0;i<32;i++)
+  {
+    if (curproc->signals_handlers[i]!=(void*)SIG_DFL ||
+        curproc->signals_handlers[i]!=(void*)SIG_IGN){
+          curproc->signals_handlers[i] = (void*)SIG_DFL;
+        }
+  }
+
   return 0;
 
  bad:

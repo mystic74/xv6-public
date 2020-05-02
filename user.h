@@ -29,6 +29,8 @@ int sleep(int);
 int uptime(void);
 int sigprocmask(uint);
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+void sigret (void);
+int kill(int, int);
 
 // ulib.c
 int stat(const char*, struct stat*);

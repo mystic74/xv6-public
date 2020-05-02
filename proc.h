@@ -55,6 +55,11 @@ struct proc {
   struct trapframe* user_trap_frame_backup;
 };
 
+struct sigaction{
+  void (*sa_handler)(int);
+  uint sigmask;
+};
+
 #define SIG_DFL 0 /*defult signal handling*/
 #define SIG_IGN 1 /*ignore signal */
 #define SIGKILL 9

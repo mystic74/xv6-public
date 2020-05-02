@@ -26,7 +26,7 @@ sys_wait(void)
   return wait();
 }
 
-int
+/*int
 sys_kill(void)
 {
   int pid;
@@ -34,7 +34,7 @@ sys_kill(void)
   if(argint(0, &pid) < 0)
     return -1;
   return kill(pid);
-}
+}*/
 
 int
 sys_getpid(void)
@@ -93,8 +93,11 @@ sys_uptime(void)
 
 /*task 2.1.3 updating the process signal mask*/
 uint
-sys_sigprocmask (uint sigmask)
+sys_sigprocmask (void)
 {
+  uint sigmask;
+  if (argint(0,(int*)&sigmask)<0)
+    return -1;
   struct proc *curproc = myproc();
   uint old_mask = curproc -> signal_mask;
   curproc -> signal_mask = sigmask;
@@ -104,7 +107,38 @@ sys_sigprocmask (uint sigmask)
 int
 sys_sigaction(void)
 {
-  // NOT IMPLEMENTED YET
-  // Gather args
+  int signum;
+  const struct sigaction *act;
+  struct sigaction *oldact;
+  struct proc *curproc = myproc();
+  if (argint (0,&signum)<0)
+    return -1;
+  if (argptr(0,(char**)&act,sizeof(act))<0)
+    return -1;
+  if (argptr(0,(char**)&oldact,sizeof(oldact))<0)
+    return -1;
+  if (signum > 31 || signum < 0||signum == 9/*SIGKILL*/ ||signum == 17/*SIGSTOP*/)
+    return -1;
+  curproc -> signals_handlers[signum] = &act;
+  if (oldact != (void*)NULL)
+    return oldact->sigmask;
   return 0;
+}
+
+int
+sys_sigret (void)
+{
+  sigret();
+  return 1;
+}
+
+int 
+sys_kill (void)
+{
+  int pid, signum;
+  if (argint(0,(int*)&pid)<0)
+    return -1;
+  if (argint(0,(int*)&signum)<0)
+    return -1;
+  return kill(pid,signum);
 }
