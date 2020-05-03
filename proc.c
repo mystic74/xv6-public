@@ -368,7 +368,7 @@ scheduler(void)
         continue;
       //check if SIGSTOP is on and there's no SIGCONT pending signal
       if (p->stoped ==1 && 
-          (((0x80000000>>SIGCONT)&(p->pending_signals)) != 0x80000000>>SIGCONT))
+          !(((uint)1<<SIGCONT)&(p->pending_signals)) )
         continue;
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -602,7 +602,7 @@ int SIG_KILL(int pid)
     if (p->pid == pid){
       p->killed = 1;
   
-      p->pending_signals = (uint)((p->pending_signals)&(2147483647>>SIGKILL));
+      p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGKILL);
 
       release(&ptable.lock);
       return 0;
@@ -622,7 +622,8 @@ int SIG_STOP(int pid)
       if (p->state != SLEEPING)
       {
         p->stoped = 1;
-        p->pending_signals = (uint)((p->pending_signals)&(2147483647>>SIGSTOP));
+        p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGSTOP);
+       
       }
       release(&ptable.lock);
       return 0;
@@ -641,7 +642,7 @@ int SIG_CONT(int pid)
       if (p->stoped ==1)
       {
         p->stoped = 0;
-        p->pending_signals = (uint)((p->pending_signals)&(2147483647>>SIGCONT));
+        p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGCONT);
       release(&ptable.lock);
       return 0;
       }
