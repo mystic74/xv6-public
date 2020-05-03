@@ -113,15 +113,18 @@ sys_sigaction(void)
   struct proc *curproc = myproc();
   if (argint (0,&signum)<0)
     return -1;
-  if (argptr(0,(char**)&act,sizeof(act))<0)
+  if (argptr(1,(char**)&act,sizeof(act))<0)
     return -1;
-  if (argptr(0,(char**)&oldact,sizeof(oldact))<0)
+  if (argptr(2,(char**)&oldact,sizeof(oldact))<0)
     return -1;
-  if (signum > 31 || signum < 0||signum == 9/*SIGKILL*/ ||signum == 17/*SIGSTOP*/)
+  if (signum > 31 || signum < 0||signum == SIGKILL ||signum == SIGSTOP)
     return -1;
   if (oldact != (void*)NULL)
     oldact = curproc->signals_handlers[signum];
-  curproc -> signals_handlers[signum] = &act;  
+  if (act != (void*)NULL)
+  {
+    curproc -> signals_handlers[signum] = &act;
+  }  
   return 0;
 }
 

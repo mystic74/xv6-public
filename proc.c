@@ -366,7 +366,10 @@ scheduler(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
-
+      //check if SIGSTOP is on and there's no SIGCONT pending signal
+      if (p->stoped ==1 && 
+          (((0x80000000>>SIGCONT)&(p->pending_signals)) != 0x80000000>>SIGCONT))
+        continue;
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -563,16 +566,17 @@ procdump(void)
     cprintf("\n");
   }
 }
-//void sigret(void);
+
 
 int kill (int pid, int signum)
 {
   struct proc *p;
-  
+  if (signum<0 || signum>31)
+    return -1;
   acquire(&ptable.lock);
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
-      p->killed = 1;
+      //p->killed = 1;
 
       //0x80000000 in binary : 10000000000000000000000000000000
       p->pending_signals = (uint)((0x80000000>>signum)|(p->pending_signals));
@@ -588,4 +592,62 @@ int kill (int pid, int signum)
   }
   release(&ptable.lock);
   return -1;
+}
+
+int SIG_KILL(int pid)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  for (p=ptable.proc;p<&ptable.proc[NPROC];p++){
+    if (p->pid == pid){
+      p->killed = 1;
+  
+      p->pending_signals = (uint)((p->pending_signals)&(2147483647>>SIGKILL));
+
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+
+}
+
+int SIG_STOP(int pid)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  for (p=ptable.proc;p<&ptable.proc[NPROC];p++){
+    if (p->pid == pid){
+      if (p->state != SLEEPING)
+      {
+        p->stoped = 1;
+        p->pending_signals = (uint)((p->pending_signals)&(2147483647>>SIGSTOP));
+      }
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+}
+
+int SIG_CONT(int pid)
+{
+    struct proc *p;
+  acquire(&ptable.lock);
+  for (p=ptable.proc;p<&ptable.proc[NPROC];p++){
+    if (p->pid == pid){
+      if (p->stoped ==1)
+      {
+        p->stoped = 0;
+        p->pending_signals = (uint)((p->pending_signals)&(2147483647>>SIGCONT));
+      release(&ptable.lock);
+      return 0;
+      }
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+
 }
