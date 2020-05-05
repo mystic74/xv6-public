@@ -27,7 +27,7 @@ alltraps:
   # Return falls through to trapret...
 .globl trapret
 trapret:
-  call hendel_signals
+  call handle_signals
   popal
   popl %gs
   popl %fs

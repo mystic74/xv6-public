@@ -367,7 +367,7 @@ scheduler(void)
       if(p->state != RUNNABLE)
         continue;
       //check if SIGSTOP is on and there's no SIGCONT pending signal
-      if (p->stoped ==1 && 
+      if (p->stopped ==1 && 
           !(((uint)1<<SIGCONT)&(p->pending_signals)) )
         continue;
       // Switch to chosen process.  It is the process's job
@@ -579,7 +579,7 @@ int kill (int pid, int signum)
       //p->killed = 1;
 
       //0x80000000 in binary : 10000000000000000000000000000000
-      p->pending_signals = (uint)((0x80000000>>signum)|(p->pending_signals));
+      p->pending_signals |= (uint)(1 << signum);
 
 
 
@@ -594,15 +594,19 @@ int kill (int pid, int signum)
   return -1;
 }
 
-int SIG_KILL()
+int SIG_KILL(int sig)
 {
   struct proc *p = myproc();
+    cprintf(" SIG_KILL : pending %x, signal %d\n", p->pending_signals, sig);
+
   acquire(&ptable.lock);
 
   p->killed = 1;
   
-  p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGKILL);
+  p->pending_signals ^= (1 << sig);
   
+  cprintf(" SIG_KILL done : pending %x \n", p->pending_signals);
+
   release(&ptable.lock);
   return 0;
 
@@ -614,8 +618,8 @@ int SIG_STOP()
   acquire(&ptable.lock);
   if (p->state != SLEEPING)
     {
-      p->stoped = 1;
-      p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGSTOP);   
+      p->stopped = 1;
+      p->pending_signals ^= (1UL << SIGSTOP);   
     }
   release(&ptable.lock);
   return -1;
@@ -625,10 +629,10 @@ int SIG_CONT()
 {
   struct proc *p = myproc();
   acquire(&ptable.lock);
-  if (p->stoped ==1)
+  if (p->stopped ==1)
     {
-      p->stoped = 0;
-      p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGCONT);
+      p->stopped = 0;
+      p->pending_signals ^= (1UL << SIGCONT);
     }
   release(&ptable.lock);
   return 0;
@@ -639,37 +643,59 @@ void execute_signal (int sig_number)
 {
   switch (sig_number)
   {
-    case (17):
+    case (SIGSTOP):
       SIG_STOP();
       break;
-    case (19):
+    case (SIGCONT):
       SIG_CONT();
       break;
+
+    case(SIGKILL):
     default:
-      SIG_KILL(); 
+      SIG_KILL(sig_number); 
   }
 
 }
 
-void hendel_signals()
+void handle_signals()
 {
     struct proc *p = myproc();
     int i;
-    //  p freezed and cont is not pending
-    if (p->stoped && ((unsigned)(p->pending_signals&(1UL<<SIGCONT)) == 0))
+
+    if (p == 0)
+    {
       return;
+    }
+    if (p->stopped == 1)
+      return;
+    
+    //cprintf(" didn't die! \n");
+    
+    //  p freezed and cont is not pending
+    //if (p->stoped && ((unsigned)(p->pending_signals&(1UL<<SIGCONT)) == 0))
+    if ((p->stopped) && (checkbit(p->pending_signals, SIGCONT) == 0))
+      return;
+
     for (i=0;i<32;i++)
     {
+      
       struct sigaction *handler = p->signals_handlers[i];
       if ((int)handler == SIG_IGN)
       {
+        cprintf(" SIG_IGN \n");
         //shut down the signal and continue to the next signal
         p->pending_signals^=(0^p->pending_signals)&(1UL<<i);
         continue;
       }
+
       //if signal mask is 1, continue withour shutting down the signal
-      if ((unsigned)(p->signal_mask&(1UL<<i))>0)
-        continue;
-      execute_signal(i); 
+      // Well check the following:
+      // The pending signal & the binary not of the signal mask bit.
+      //if (((unsigned)(p->pending_signals) & ~((unsigned)(p->signal_mask&(1UL<<i)))) >0)
+      if (checkbit(p->pending_signals, i) && !(checkbit(p->signal_mask, i)))
+        execute_signal(i); 
+      
+      
     }
+    
 }

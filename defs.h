@@ -190,3 +190,16 @@ void            clearpteu(pde_t *pgdir, char *uva);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+#define __SIGNALS__ 1 // For ifndef
+#define SIG_DFL 0 /*defult signal handling*/
+#define SIG_IGN 1 /*ignore signal */
+#define SIGKILL 9
+#define SIGSTOP 17
+#define SIGCONT 19
+
+
+#define setbit(val, nbit)  ((val) |= (1 << (nbit)))
+#define clearbit(val, nbit)  ((val) &= ~(1 << (nbit)))
+#define flipbit(val, nbit)  ((val) ^= (1 << (nbit)))
+#define checkbit(val, nbit)  ((val) & (1 << (nbit)))

@@ -44,3 +44,12 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+
+
+#ifndef __SIGNALS__
+    #define SIG_DFL 0 /*defult signal handling*/
+    #define SIG_IGN 1 /*ignore signal */
+    #define SIGKILL 9
+    #define SIGSTOP 17
+    #define SIGCONT 19
+#endif // __SIGNALS__
