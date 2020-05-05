@@ -141,7 +141,7 @@ sys_kill (void)
   int pid, signum;
   if (argint(0,(int*)&pid)<0)
     return -1;
-  if (argint(0,(int*)&signum)<0)
+  if (argint(1,(int*)&signum)<0)
     return -1;
   return kill(pid,signum);
 }
