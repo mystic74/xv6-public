@@ -1,7 +1,11 @@
 #include "mmu.h"
 
+
+
+
   # vectors.S sends all traps here.
 .globl alltraps
+
 alltraps:
   # Build trap frame.
   pushl %ds

@@ -594,61 +594,82 @@ int kill (int pid, int signum)
   return -1;
 }
 
-int SIG_KILL(int pid)
+int SIG_KILL()
 {
-  struct proc *p;
+  struct proc *p = myproc();
   acquire(&ptable.lock);
-  for (p=ptable.proc;p<&ptable.proc[NPROC];p++){
-    if (p->pid == pid){
-      p->killed = 1;
+
+  p->killed = 1;
   
-      p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGKILL);
-
-      release(&ptable.lock);
-      return 0;
-    }
-  }
+  p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGKILL);
+  
   release(&ptable.lock);
-  return -1;
+  return 0;
 
 }
 
-int SIG_STOP(int pid)
+int SIG_STOP()
 {
-  struct proc *p;
+  struct proc *p = myproc();
   acquire(&ptable.lock);
-  for (p=ptable.proc;p<&ptable.proc[NPROC];p++){
-    if (p->pid == pid){
-      if (p->state != SLEEPING)
-      {
-        p->stoped = 1;
-        p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGSTOP);
-       
-      }
-      release(&ptable.lock);
-      return 0;
+  if (p->state != SLEEPING)
+    {
+      p->stoped = 1;
+      p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGSTOP);   
     }
-  }
   release(&ptable.lock);
   return -1;
 }
 
-int SIG_CONT(int pid)
+int SIG_CONT()
 {
-    struct proc *p;
+  struct proc *p = myproc();
   acquire(&ptable.lock);
-  for (p=ptable.proc;p<&ptable.proc[NPROC];p++){
-    if (p->pid == pid){
-      if (p->stoped ==1)
-      {
-        p->stoped = 0;
-        p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGCONT);
-      release(&ptable.lock);
-      return 0;
-      }
+  if (p->stoped ==1)
+    {
+      p->stoped = 0;
+      p->pending_signals ^= (-0 ^ p->pending_signals) & (1UL << SIGCONT);
     }
-  }
   release(&ptable.lock);
-  return -1;
+  return 0;
 
+}
+
+void execute_signal (int sig_number)
+{
+  switch (sig_number)
+  {
+    case (17):
+      SIG_STOP();
+      break;
+    case (19):
+      SIG_CONT();
+      break;
+    default:
+      SIG_KILL(); 
+  }
+
+}
+
+void hendel_signals()
+{
+    struct proc *p = myproc();
+    int i;
+    //  p freezed and cont is not pending
+    if (p->stoped && ((unsigned)(p->pending_signals&(1UL<<SIGCONT)) == 0))
+      return;
+    for (i=0;i<32;i++)
+    {
+      struct sigaction *handler = p->signals_handlers[i];
+      if ((int)handler == SIG_IGN)
+      {
+        //shut down the signal and continue to the next signal
+        p->pending_signals^=(0^p->pending_signals)&(1UL<<i);
+        continue;
+      }
+      //if signal mask is 1, continue withour shutting down the signal
+      if ((unsigned)(p->signal_mask&(1UL<<i))>0)
+        continue;
+      execute_signal(i); 
+    }
 }
