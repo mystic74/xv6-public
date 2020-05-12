@@ -6,6 +6,7 @@
 
 #define proc_number 3
 
+void stupid_handler1(int numnum);
 
 int pid_array[proc_number+1];
 void init_pid_array()
@@ -25,19 +26,12 @@ void dummy_sleep()
 }
 #define MY_SIGSIG 11
 
-void stupid_handler1(int numnum)
-{
-    printf(1, "this is the stupid signal handler! \n");
-    printf(1, "this is the signal number! %d \n", numnum);
-}
-
-
 void dummy_action()
 {
     struct sigaction mystruct;
     
     mystruct.sa_handler = &stupid_handler1;
-    mystruct.sigmask = 0xffffffff;
+    mystruct.sigmask = 0x0;
     
     printf(1," address is %x, setting in param \n", &stupid_handler1);
     printf(1, "This is the action registering function for proc :%d  \n", getpid());
@@ -46,6 +40,14 @@ void dummy_action()
 
 
 }
+
+
+void stupid_handler1(int numnum)
+{
+    printf(1, "this is the stupid signal handler! \n");
+    printf(1, "this is the signal number! %d \n", numnum);
+}
+
 void dummy_loop()
 {
     volatile int i = 0xDEADBABE;
