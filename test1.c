@@ -35,10 +35,12 @@ void stupid_handler1(int numnum)
 void dummy_action()
 {
     struct sigaction mystruct;
-    mystruct.sa_handler = stupid_handler1;
-    mystruct.sigmask = 0;
     
-    printf(1, "This is the action registering function \n");
+    mystruct.sa_handler = &stupid_handler1;
+    mystruct.sigmask = 0xffffffff;
+    
+    printf(1," address is %x, setting in param \n", &stupid_handler1);
+    printf(1, "This is the action registering function for proc :%d  \n", getpid());
 
     sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
 
@@ -88,6 +90,7 @@ void sending_kernel_signals()
         
         kill (send_to,SIGCONT);
         
+        kill (send_to - 1,MY_SIGSIG);
         kill (send_to,MY_SIGSIG);
     }
 }
@@ -116,9 +119,9 @@ int main()
     if ((pid3 = fork()) == 0)
     {
         pid_array[3] = getpid();
-        dummy_sleep();
-        sending_kernel_signals();
         
+        //sending_kernel_signals();
+        dummy_loop();
         //dummy_loop();
     }
     

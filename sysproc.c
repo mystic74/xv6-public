@@ -110,20 +110,30 @@ sys_sigaction(void)
   int signum;
   const struct sigaction *act;
   struct sigaction *oldact;
+
   struct proc *curproc = myproc();
-  if (argint (0,&signum)<0)
+  
+  if (argint (0, &signum) < 0)
     return -1;
-  if (argptr(1,(char**)&act,sizeof(act))<0)
+
+  if (argptr(1,(void*)&act,sizeof(*act))<0)
     return -1;
-  if (argptr(2,(char**)&oldact,sizeof(oldact))<0)
+
+  if (argptr(2,(void*)&oldact,sizeof(*oldact))<0)
     return -1;
+
   if (signum > 31 || signum < 0||signum == SIGKILL ||signum == SIGSTOP)
     return -1;
+
   if (oldact != (void*)NULL)
-    oldact = curproc->signals_handlers[signum];
+  {
+      oldact->sa_handler = curproc->signals_handlers[signum];
+      oldact->sigmask = curproc->signal_mask;
+  }
   if (act != (void*)NULL)
   {
-    curproc -> signals_handlers[signum] = &act;
+    curproc -> signals_handlers[signum] = act->sa_handler;
+    curproc->signal_mask = act->sigmask;
   }  
   return 0;
 }
