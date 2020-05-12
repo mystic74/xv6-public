@@ -688,7 +688,15 @@ void handle_signals()
     for (i=0;i<32;i++)
     {
       
+      // Check to see if we have a signal to begin with..
+      if ((!checkbit(p->pending_signals,i)) || (checkbit(p->signal_mask,i)))
+        continue;
+
+      // We do. get tthhe handler
       struct sigaction *handler = p->signals_handlers[i];
+
+      // If the handler for the bit is sig_ign, set the following
+      // TODO TomR : function?
       if ((int)handler == SIG_IGN)
       {
         cprintf(" SIG_IGN \n");
@@ -698,7 +706,7 @@ void handle_signals()
       }
       
       
-      
+      // If the handler is the default one, go and execute it? im not sure whats going on here.
       if ((int)handler == SIG_DFL)
       {
         //cprintf("SIG_DFL \n");
