@@ -568,7 +568,13 @@ procdump(void)
   }
 }
 
-
+void print_in_binary(uint n)
+{
+  unsigned i; 
+  for (i = 1 << 31; i > 0; i = i / 2) 
+    (n & i)? cprintf("1"): cprintf("0");
+  cprintf("\n");
+}
 int kill (int pid, int signum)
 {
   struct proc *p;
@@ -578,10 +584,12 @@ int kill (int pid, int signum)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
       //p->killed = 1;
-
+      cprintf("pid %d got %d signal, peinding signals:\n",p->pid, signum);
+      print_in_binary(p->pending_signals);
       //0x80000000 in binary : 10000000000000000000000000000000
       p->pending_signals |= (uint)(1 << signum);
-
+      cprintf("pid %d updated %d signal, new peinding signals:\n",p->pid, signum, p->pending_signals);
+      print_in_binary(p->pending_signals);
 
 
       // Wake process from sleep if necessary.
@@ -688,18 +696,26 @@ void handle_signals()
         continue;
       }
       
+      
+      
       if ((int)handler == SIG_DFL)
       {
-        cprintf("SIG_DFL \n");
+        //cprintf("SIG_DFL \n");
         //if signal mask is 1, continue withour shutting down the signal
         // Well check the following:
         // The pending signal & the binary not of the signal mask bit.
         //if (((unsigned)(p->pending_signals) & ~((unsigned)(p->signal_mask&(1UL<<i)))) >0)
         if (checkbit(p->pending_signals, i) && !(checkbit(p->signal_mask, i)))
           execute_signal(i); 
-        
+        continue;
+       }
+      if ((int)handler == SIGSTOP || (int)handler == SIGKILL || (int)handler == SIGCONT)
+      {
+        if (checkbit(p->pending_signals, i) && !(checkbit(p->signal_mask, i)))
+          execute_signal((int)handler);
         continue;
       }
+    
 
       //user_signal_handler
       
@@ -708,6 +724,8 @@ void handle_signals()
       if (p->handeling_signal == 1)
         return;
       p->handeling_signal = 1;
+      if (checkbit(handler->sigmask, i))
+        return;
 
       uint size = (uint)((&end_sigret) - (&start_sigret));
       p->tf->esp -= size;

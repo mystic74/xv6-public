@@ -3,6 +3,30 @@
 #include "mmu.h"
 #include "user.h"
 
+
+#define proc_number 3
+#define SIG_DFL 0 /*defult signal handling*/
+#define SIG_IGN 1 /*ignore signal */
+#define SIGKILL 9
+#define SIGSTOP 17
+#define SIGCONT 19
+
+int pid_array[proc_number+1];
+void init_pid_array()
+{
+    int i;
+    for (i=0;i<proc_number+1;i++)
+    {
+        pid_array[i] = -1;
+    }
+
+}
+void dummy_sleep()
+{
+    int uptime_org = uptime();
+    int uptime_digit = uptime_org % 100;
+    sleep(uptime_digit);
+}
 void dummy_loop()
 {
     volatile int i = 0xDEADBABE;
@@ -20,23 +44,60 @@ void dummy_loop()
     exit();
 }
 
+int find_pid (int curpid)
+{
+    int i;
+    for (i=1;i<proc_number+1;i++)
+    {
+        if (pid_array[i]!=curpid && pid_array[i] != -1)
+            return pid_array[i];
+    }
+    return -1;
+}
+
+void sending_kernel_signals()
+{
+    
+    int curpid = getpid();
+    int send_to = find_pid(curpid);
+    if (send_to != -1)
+    {
+        printf(1,"pid %d sending kill signal to pid %d\n",curpid,send_to);
+        kill (send_to, SIGKILL);
+        printf(1,"pid %d sending stop signal to pid %d\n",curpid,send_to);
+        kill (send_to,SIGSTOP);
+
+    }
+}
+
+
 int main()
 {
+    init_pid_array();
     int pid1, pid2, pid3;
 
     if ((pid1 = fork()) == 0)
     {
-        dummy_loop();
+        pid_array[1] = getpid();
+        dummy_sleep();
+
+        //dummy_loop();
     }
     sleep(uptime()%20);
     if ((pid2 = fork()) == 0)
     {
-        dummy_loop();
+        pid_array[2] = getpid();
+        dummy_sleep();
+        //dummy_loop();
     }
     sleep(uptime()%20);
     if ((pid3 = fork()) == 0)
     {
-        dummy_loop();
+        pid_array[3] = getpid();
+        dummy_sleep();
+        sending_kernel_signals();
+        
+        //dummy_loop();
     }
     
     while ((wait()) > 0)
@@ -44,3 +105,4 @@ int main()
 
     exit();
 }
+
