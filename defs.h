@@ -10,6 +10,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -109,6 +110,7 @@ int             fork(void);
 int             growproc(int);
 int             kill(int,int);
 void            sigret(void);
+void            trapframe_backup(void);
 struct cpu*     mycpu(void);
 struct proc*    myproc();
 void            pinit(void);

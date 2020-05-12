@@ -128,11 +128,10 @@ sys_sigaction(void)
   return 0;
 }
 
-int
+void
 sys_sigret (void)
 {
-  //sigret();
-  return 1;
+  sigret();
 }
 
 int 

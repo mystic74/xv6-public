@@ -54,6 +54,8 @@ struct proc {
   uint signal_mask; 
   void* signals_handlers[32];
   struct trapframe* user_trap_frame_backup;
+
+  int handeling_signal;
 };
 
 struct sigaction{

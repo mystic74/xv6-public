@@ -17,7 +17,8 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
-
+extern void start_sigret(void);
+extern void end_sigret(void);
 static void wakeup1(void *chan);
 
 void
@@ -659,16 +660,15 @@ void execute_signal (int sig_number)
 
 void handle_signals()
 {
+
     struct proc *p = myproc();
     int i;
 
     if (p == 0)
     {
+      
       return;
     }
-    if (p->stopped == 1)
-      return;
-    
     //cprintf(" didn't die! \n");
     
     //  p freezed and cont is not pending
@@ -687,15 +687,54 @@ void handle_signals()
         p->pending_signals^=(0^p->pending_signals)&(1UL<<i);
         continue;
       }
+      
+      if ((int)handler == SIG_DFL)
+      {
+        cprintf("SIG_DFL \n");
+        //if signal mask is 1, continue withour shutting down the signal
+        // Well check the following:
+        // The pending signal & the binary not of the signal mask bit.
+        //if (((unsigned)(p->pending_signals) & ~((unsigned)(p->signal_mask&(1UL<<i)))) >0)
+        if (checkbit(p->pending_signals, i) && !(checkbit(p->signal_mask, i)))
+          execute_signal(i); 
+        
+        continue;
+      }
 
-      //if signal mask is 1, continue withour shutting down the signal
-      // Well check the following:
-      // The pending signal & the binary not of the signal mask bit.
-      //if (((unsigned)(p->pending_signals) & ~((unsigned)(p->signal_mask&(1UL<<i)))) >0)
-      if (checkbit(p->pending_signals, i) && !(checkbit(p->signal_mask, i)))
-        execute_signal(i); 
+      //user_signal_handler
       
-      
+      //create backup for the user current trapframe
+      trapframe_backup(); 
+      if (p->handeling_signal == 1)
+        return;
+      p->handeling_signal = 1;
+
+      uint size = (uint)((&end_sigret) - (&start_sigret));
+      p->tf->esp -= size;
+      uint funcion_addr = p->tf->esp;
+      memmove((void*)p->tf->esp,&start_sigret,size);
+  
+      *((int*)(p->tf->esp -4)) = i; //push arguments
+      *((int*)(p->tf->esp -8)) = funcion_addr; //push return addr
+      p->tf->esp -=8;
+      p->tf->eip = *((int*)handler->sa_handler); //jump to the address of the called function
+
     }
     
+}
+
+
+void trapframe_backup(void)
+{
+  struct proc *p = myproc();
+  p->user_trap_frame_backup =  memmove(p->user_trap_frame_backup, p->tf ,sizeof(struct trapframe));
+
+}
+
+//restores the original trapframe
+void sigret(void)
+{
+  struct proc *p = myproc();
+  p->tf = memmove(p->tf, p->user_trap_frame_backup,sizeof(struct trapframe));
+  p->handeling_signal = 0;
 }
