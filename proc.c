@@ -692,8 +692,8 @@ void handle_signals()
       if ((!checkbit(p->pending_signals,i)) || (checkbit(p->signal_mask,i)))
         continue;
 
-      // We do. get tthhe handler
-      struct sigaction *handler = p->signals_handlers[i];
+      // We do. get the handler
+      void* handler = p->signals_handlers[i];
 
       // If the handler for the bit is sig_ign, set the following
       // TODO TomR : function?
@@ -733,18 +733,19 @@ void handle_signals()
       if (p->handeling_signal == 1)
         return;
       p->handeling_signal = 1;
-      if (checkbit(handler->sigmask, i))
-        return;
-
+      flipbit(p->pending_signals, i);
       uint size = (uint)((&end_sigret) - (&start_sigret));
       p->tf->esp -= size;
+
       uint funcion_addr = p->tf->esp;
+      
       memmove((void*)p->tf->esp,&start_sigret,size);
   
       *((int*)(p->tf->esp -4)) = i; //push arguments
       *((int*)(p->tf->esp -8)) = funcion_addr; //push return addr
       p->tf->esp -=8;
-      p->tf->eip = *((int*)handler->sa_handler); //jump to the address of the called function
+      
+      p->tf->eip = ((uint)handler); //jump to the address of the called function
 
     }
     
@@ -754,7 +755,7 @@ void handle_signals()
 void trapframe_backup(void)
 {
   struct proc *p = myproc();
-  p->user_trap_frame_backup =  memmove(p->user_trap_frame_backup, p->tf ,sizeof(struct trapframe));
+  memmove(p->user_trap_frame_backup, p->tf ,sizeof(struct trapframe));
 
 }
 
@@ -762,6 +763,7 @@ void trapframe_backup(void)
 void sigret(void)
 {
   struct proc *p = myproc();
-  p->tf = memmove(p->tf, p->user_trap_frame_backup,sizeof(struct trapframe));
+
+  memmove(p->tf, p->user_trap_frame_backup,sizeof(struct trapframe));
   p->handeling_signal = 0;
 }
