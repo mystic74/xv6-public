@@ -584,12 +584,12 @@ int kill (int pid, int signum)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
       //p->killed = 1;
-      cprintf("pid %d got %d signal, peinding signals:\n",p->pid, signum);
-      print_in_binary(p->pending_signals);
-      //0x80000000 in binary : 10000000000000000000000000000000
+      
+      
+      
       p->pending_signals |= (uint)(1 << signum);
-      cprintf("pid %d updated %d signal, new peinding signals:\n",p->pid, signum, p->pending_signals);
-      print_in_binary(p->pending_signals);
+      
+      
 
 
       // Wake process from sleep if necessary.
@@ -606,7 +606,6 @@ int kill (int pid, int signum)
 int SIG_KILL(int sig)
 {
   struct proc *p = myproc();
-    cprintf(" SIG_KILL : pending %x, signal %d\n", p->pending_signals, sig);
 
   acquire(&ptable.lock);
 
@@ -614,7 +613,6 @@ int SIG_KILL(int sig)
   
   p->pending_signals ^= (1 << sig);
   
-  cprintf(" SIG_KILL done : pending %x \n", p->pending_signals);
 
   release(&ptable.lock);
   return 0;
@@ -628,7 +626,8 @@ int SIG_STOP()
   if (p->state != SLEEPING)
     {
       p->stopped = 1;
-      p->pending_signals ^= (1UL << SIGSTOP);   
+      p->pending_signals ^= (1UL << SIGSTOP);  
+      
     }
   release(&ptable.lock);
   return -1;
@@ -642,6 +641,8 @@ int SIG_CONT()
     {
       p->stopped = 0;
       p->pending_signals ^= (1UL << SIGCONT);
+      p->pending_signals ^= (1UL << SIGSTOP);  
+      
     }
   release(&ptable.lock);
   return 0;
