@@ -5,10 +5,22 @@
 
 
 #define proc_number 3
-
+#define VERBOSE 1
 void stupid_handler1(int numnum);
+void stupid_handler2(int numnum);
+void dummy_loop();
+
 
 int pid_array[proc_number+1];
+
+inline void verbose_log(int loglevel, const char* printval)
+{
+    if (VERBOSE > loglevel)
+    {
+        printf(1, "%s", printval);
+    }
+}
+
 void init_pid_array()
 {
     int i;
@@ -41,10 +53,177 @@ void dummy_action()
 
 }
 
+void test_inherit_mask()
+{
+    int childid;
+    childid = fork();
+    struct sigaction mystruct;
+    
+    mystruct.sa_handler = &stupid_handler2;
+    mystruct.sigmask = (1 << (MY_SIGSIG);
+
+    sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
+
+    if (childid == 0)
+    {
+        // In child we should halt for a while.
+        dummy_action();
+
+        // loop for a while?
+        dummy_loop();        
+    }
+    else
+    {
+
+        verbose_log(0, "Entering father");
+        // In parent
+        verbose_log(1, "sleeping for a second for syncing parent... \n");
+        sleep(1);
+        verbose_log(1, "setting child to pause\n");
+
+        // Sending stop to child.
+        kill(childid, MY_SIGSIG);
+    }
+}
+
+void test_mask()
+{
+    int childid;
+    childid = fork();
+    struct sigaction mystruct;
+    
+    
+    if (childid == 0)
+    {
+        mystruct.sa_handler = &stupid_handler2;
+        mystruct.sigmask = (1 << (MY_SIGSIG);
+
+        sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
+
+        // loop for a while?
+        dummy_loop();        
+    }
+    else
+    {
+
+        verbose_log(0, "Entering father");
+        // In parent
+        verbose_log(1, "sleeping for a second for syncing parent... \n");
+        sleep(3);
+        verbose_log(1, "setting child to pause\n");
+
+        // Sending stop to child.
+        kill(childid, MY_SIGSIG);
+    }
+}
+
+void test_kill_suspended()
+{
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+        // In child we should halt for a while.
+        dummy_action();
+
+        // loop for a while?
+        dummy_loop();        
+    }
+    else
+    {
+
+        verbose_log(0, "Entering father");
+        // In parent
+        verbose_log(1, "sleeping for a second for syncing parent... \n");
+        sleep(1);
+        verbose_log(1, "setting child to pause\n");
+
+        // Sending stop to child.
+        kill(childid, SIGSTOP);
+
+        kill(childid, SIGKILL);
+    }    
+}
+
+void test_handler_suspended()
+{
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+        // In child we should halt for a while.
+        dummy_action();
+
+        // loop for a while?
+        dummy_loop();        
+    }
+    else
+    {
+
+        verbose_log(0, "Entering father");
+        // In parent
+        verbose_log(1, "sleeping for a second for syncing parent... \n");
+        sleep(1);
+        verbose_log(1, "setting child to pause\n");
+
+        // Sending stop to child.
+        kill(childid, SIGSTOP);
+
+        // sending the dumb signal now, expecting NO PRINT.
+        kill(childid, MY_SIGSIG);
+
+        // Sending Continue
+        kill (childid, SIGCONT);
+    }
+    
+}
+
+
+void test_handler_suspended_no_cont()
+{
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+        // In child we should halt for a while.
+        dummy_action();
+
+        // loop for a while?
+        dummy_loop();        
+    }
+    else
+    {
+
+        verbose_log(0, "Entering father");
+        // In parent
+        verbose_log(1, "sleeping for a second for syncing parent... \n");
+        sleep(1);
+        verbose_log(1, "setting child to pause\n");
+
+        // Sending stop to child.
+        kill(childid, SIGSTOP);
+
+        // sending the dumb signal now, expecting NO PRINT.
+        kill(childid, MY_SIGSIG);
+    }
+    
+}
+
 
 void stupid_handler1(int numnum)
 {
     printf(1, "this is the stupid signal handler! \n");
+    printf(1, "this is the signal number! %d \n", numnum);
+}
+
+
+void stupid_handler2(int numnum)
+{
+    printf(1, "this is the another! signal handler! \n");
+    printf(1, "2222222222222222222222222222222222222 \n");
     printf(1, "this is the signal number! %d \n", numnum);
 }
 
@@ -98,9 +277,9 @@ void sending_kernel_signals()
 }
 
 
-int main()
+void test_basic_bitch()
 {
-    init_pid_array();
+     init_pid_array();
     int pid1, pid2, pid3;
 
     if ((pid1 = fork()) == 0)
@@ -126,7 +305,12 @@ int main()
         dummy_loop();
         //dummy_loop();
     }
-    
+}
+
+int main()
+{
+    test_basic_bitch();
+
     while ((wait()) > 0)
         ;
 
