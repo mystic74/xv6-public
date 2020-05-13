@@ -584,14 +584,7 @@ int kill (int pid, int signum)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
       //p->killed = 1;
-      
-      
-      
-      p->pending_signals |= (uint)(1 << signum);
-      
-      
-
-
+      p->pending_signals |= (uint)(1 << signum);      
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
         p->state = RUNNABLE;
