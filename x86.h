@@ -140,8 +140,8 @@ cas(volatile void* addr, int expected, int newval)
               "jz is_equal \n\t"
               "movl $0, %0 \n\t" // or just mov?
               "is_equal: \n\t" :
-               "=m" (ret) :
-               "a"(expected), "b"(addr), "r",(newval) :
+               "=m" (result) :
+               "a"(expected), "b"(addr), "r"(newval) :
                "memory");
   return result;
 }
