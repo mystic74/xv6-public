@@ -3,9 +3,10 @@
 #include "mmu.h"
 #include "user.h"
 
-
+#define MY_SIGSIG 11
+#define MY_OTHER_SIGIG 12
 #define proc_number 3
-#define VERBOSE 1
+#define VERBOSE 2
 void stupid_handler1(int numnum);
 void stupid_handler2(int numnum);
 void dummy_loop();
@@ -36,21 +37,69 @@ void dummy_sleep()
     int uptime_digit = uptime_org % 100;
     sleep(uptime_digit);
 }
-#define MY_SIGSIG 11
 
-void dummy_action()
+void reg_stupidhandler1_with_sig_and_mask(const int SIG, const int mask)
+{
+    struct sigaction mystruct;
+    
+    mystruct.sa_handler = &stupid_handler1;
+    mystruct.sigmask = mask;
+    
+    sigaction(SIG,  &mystruct, (void*)NULL);
+}
+
+
+void reg_stupidhandler1_with_sig(const int SIG)
 {
     struct sigaction mystruct;
     
     mystruct.sa_handler = &stupid_handler1;
     mystruct.sigmask = 0x0;
     
-    printf(1," address is %x, setting in param \n", &stupid_handler1);
-    printf(1, "This is the action registering function for proc :%d  \n", getpid());
+    sigaction(SIG,  &mystruct, (void*)NULL);
+}
 
+
+void reg_stupidhandler2_with_sig_and_mask(const int SIG, const int mask)
+{
+    struct sigaction mystruct;
+    
+    mystruct.sa_handler = &stupid_handler2;
+    mystruct.sigmask = mask;
+    
+    sigaction(SIG,  &mystruct, (void*)NULL);
+}
+
+
+void reg_stupidhandler2_with_sig(const int SIG)
+{
+    struct sigaction mystruct;
+    
+    mystruct.sa_handler = &stupid_handler2;
+    mystruct.sigmask = 0x0;
+    
+    sigaction(SIG,  &mystruct, (void*)NULL);
+}
+
+
+void reg_stupidhandler1()
+{
+    struct sigaction mystruct;
+    
+    mystruct.sa_handler = &stupid_handler1;
+    mystruct.sigmask = 0x0;
+    
     sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
+}
 
-
+void reg_stupidhandler2()
+{
+    struct sigaction mystruct;
+    
+    mystruct.sa_handler = &stupid_handler2;
+    mystruct.sigmask = 0x0;
+    
+    sigaction(MY_OTHER_SIGIG,  &mystruct, (void*)NULL);
 }
 
 void test_inherit_mask()
@@ -60,14 +109,14 @@ void test_inherit_mask()
     struct sigaction mystruct;
     
     mystruct.sa_handler = &stupid_handler2;
-    mystruct.sigmask = (1 << (MY_SIGSIG);
+    mystruct.sigmask = (1 << (MY_SIGSIG));
 
     sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
 
     if (childid == 0)
     {
         // In child we should halt for a while.
-        dummy_action();
+        reg_stupidhandler1();
 
         // loop for a while?
         dummy_loop();        
@@ -96,7 +145,7 @@ void test_mask()
     if (childid == 0)
     {
         mystruct.sa_handler = &stupid_handler2;
-        mystruct.sigmask = (1 << (MY_SIGSIG);
+        mystruct.sigmask = (1 << (MY_SIGSIG));
 
         sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
 
@@ -106,11 +155,11 @@ void test_mask()
     else
     {
 
-        verbose_log(0, "Entering father");
+        verbose_log(0, "Entering father\n");
         // In parent
         verbose_log(1, "sleeping for a second for syncing parent... \n");
         sleep(3);
-        verbose_log(1, "setting child to pause\n");
+        verbose_log(1, "sending sigsig to child\n");
 
         // Sending stop to child.
         kill(childid, MY_SIGSIG);
@@ -125,7 +174,7 @@ void test_kill_suspended()
     if (childid == 0)
     {
         // In child we should halt for a while.
-        dummy_action();
+        reg_stupidhandler1();
 
         // loop for a while?
         dummy_loop();        
@@ -133,7 +182,7 @@ void test_kill_suspended()
     else
     {
 
-        verbose_log(0, "Entering father");
+        verbose_log(0, "Entering father\n");
         // In parent
         verbose_log(1, "sleeping for a second for syncing parent... \n");
         sleep(1);
@@ -141,6 +190,8 @@ void test_kill_suspended()
 
         // Sending stop to child.
         kill(childid, SIGSTOP);
+
+        verbose_log(1, "setting child kill sig!\n");
 
         kill(childid, SIGKILL);
     }    
@@ -154,8 +205,9 @@ void test_handler_suspended()
     if (childid == 0)
     {
         // In child we should halt for a while.
-        dummy_action();
+        reg_stupidhandler1();
 
+        reg_stupidhandler2();
         // loop for a while?
         dummy_loop();        
     }
@@ -171,11 +223,15 @@ void test_handler_suspended()
         // Sending stop to child.
         kill(childid, SIGSTOP);
 
+        verbose_log(1, "sending sigsig to child\n");
+
         // sending the dumb signal now, expecting NO PRINT.
         kill(childid, MY_SIGSIG);
 
         // Sending Continue
         kill (childid, SIGCONT);
+
+        kill(childid, MY_OTHER_SIGIG);
     }
     
 }
@@ -189,7 +245,7 @@ void test_handler_suspended_no_cont()
     if (childid == 0)
     {
         // In child we should halt for a while.
-        dummy_action();
+        reg_stupidhandler1();
 
         // loop for a while?
         dummy_loop();        
@@ -232,9 +288,7 @@ void dummy_loop()
     volatile int i = 0xDEADBABE;
     int uptime_org = uptime();
     int uptime_digit = uptime_org % 100;
-    
-        dummy_action();
-   
+       
     int dummy = 0;
     while (i--)
         dummy += i;
@@ -307,9 +361,59 @@ void test_basic_bitch()
     }
 }
 
+
+void test_n_fork(int forknum)
+{
+    int* pid_arr = malloc(sizeof(int) * forknum);
+    int index = 0;
+
+    for (index = 0; index < forknum; index++)
+    {
+        pid_arr[index] = fork();
+        if (pid_arr[index] == 0)
+        {
+            dummy_loop();
+        }
+        if (pid_arr[index] > 0)
+        {
+            
+            // Parent scope
+        }
+        else
+        {
+            // Error?
+
+        }
+        
+    }
+
+    while (wait() > 0);
+    free(pid_arr);
+}
+
+int random_math_loop()
+{
+    uint mathnum = 0;
+    uint numnum = getpid();
+    numnum = numnum * numnum;
+    
+    while (mathnum < numnum)
+    {
+        if ((mathnum * mathnum) == numnum)
+        {
+            break;
+        }
+        mathnum++;
+    }
+
+    if (mathnum > numnum)
+        return 0;
+    return 1;
+}
+
 int main()
 {
-    test_basic_bitch();
+    test_handler_suspended();
 
     while ((wait()) > 0)
         ;
