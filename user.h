@@ -29,6 +29,11 @@ int uptime(void);
 int sigprocmask(uint);
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
 void sigret (void);
+
+/**
+ * Seding a signal to process
+ * the first param is the pid and the second is the signal
+*/
 int kill(int, int);
 
 // ulib.c
