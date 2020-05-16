@@ -127,7 +127,7 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
-  for (i=0;i<32;i++)
+  for (i = 0; i < NUM_OF_SIGNALS; i++)
   {
     p->signals_handlers[i] = (void *) SIG_DFL;
   }
@@ -243,7 +243,7 @@ fork(void)
    it will inherit the parent’s signal mask and signal handlers*/
 
    np->signal_mask= curproc->signal_mask;
-   for (i=0; i<32;i++)
+   for (i = 0; i < NUM_OF_SIGNALS; i++)
    {
     np->signals_handlers[i] = curproc->signals_handlers[i];
    }
@@ -678,7 +678,7 @@ void handle_signals()
     if ((p->stopped) && (checkbit(p->pending_signals, SIGCONT) == 0))
       return;
 
-    for (i=0;i<32;i++)
+    for (i = 0; i < NUM_OF_SIGNALS; ++i)
     {
       
       // Check to see if we have a signal to begin with..

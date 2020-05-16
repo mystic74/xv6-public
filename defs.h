@@ -205,3 +205,7 @@ void            clearpteu(pde_t *pgdir, char *uva);
 #define clearbit(val, nbit)  ((val) &= ~(1 << (nbit)))
 #define flipbit(val, nbit)  ((val) ^= (1 << (nbit)))
 #define checkbit(val, nbit)  ((val) & (1 << (nbit)))
+
+
+#define BITS_IN_BYTE 8
+#define NUM_OF_SIGNALS (sizeof(int)*BITS_IN_BYTE)
