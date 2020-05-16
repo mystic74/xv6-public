@@ -358,8 +358,8 @@ wait(void)
     if(!havekids || curproc->killed){
       //curproc->chan = 0;
       //cas(&(curproc->state), _SLEEPING,RUNNING);
-      release(&ptable.lock);
       //cas(&(curproc->state),_SLEEPING,SLEEPING);
+      release(&ptable.lock);
       //popcli();
       return -1;
     }
@@ -392,8 +392,8 @@ scheduler(void)
     sti();
 
     // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
-    //pushcli();
+    //acquire(&ptable.lock);
+    pushcli();
     
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       //check if SIGSTOP is on and there's no SIGCONT pending signal
@@ -411,10 +411,11 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       //p->state = RUNNING;
-
+      cprintf("im in scheduler1\n");
       swtch(&(c->scheduler), p->context);
-      //cprintf("im in scheduler\n");
+      cprintf("im in scheduler2\n");
       switchkvm();
+      
       
       cas(&(p->state),_RUNNABLE,RUNNABLE);
       cas(&(p->state),_ZOMBIE,ZOMBIE);
@@ -424,8 +425,8 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-    release(&ptable.lock);
-    //popcli();
+    //release(&ptable.lock);
+    popcli();
   }
 }
 
