@@ -323,8 +323,8 @@ wait(void)
   int havekids, pid;
   struct proc *curproc = myproc();
   
-  acquire(&ptable.lock);
-  //pushcli();
+  // acquire(&ptable.lock);
+  pushcli();
   
 
   for(;;){
@@ -348,27 +348,30 @@ wait(void)
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
-        release(&ptable.lock);
-        //popcli();
+        // release(&ptable.lock);
+        popcli();
         return pid;
       }
     }
 
     // No point waiting if we don't have any children.
     if(!havekids || curproc->killed){
-      //curproc->chan = 0;
-      //cas(&(curproc->state), _SLEEPING,RUNNING);
-      //cas(&(curproc->state),_SLEEPING,SLEEPING);
-      release(&ptable.lock);
-      //popcli();
+      curproc->chan = 0;
+      cas(&(curproc->state), _SLEEPING,RUNNING);
+      cas(&(curproc->state),_SLEEPING,SLEEPING);
+      // release(&ptable.lock);
+      popcli();
       return -1;
     }
 
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
-    sleep(curproc, &ptable.lock);  //DOC: wait-sleep
-    //sched();
-    
-
+    // sleep(curproc, &ptable.lock);  //DOC: wait-sleep
+    cas(&(curproc->state),RUNNING,_SLEEPING);
+    if (curproc->state == RUNNING)
+    {
+      cprintf("Still running... \n");
+    }
+    sched();    
   }
 }
 
@@ -411,9 +414,9 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       //p->state = RUNNING;
-      cprintf("im in scheduler1\n");
+      // cprintf("im in scheduler1\n");
       swtch(&(c->scheduler), p->context);
-      cprintf("im in scheduler2\n");
+      // cprintf("im in scheduler2\n");
       switchkvm();
       
       
@@ -460,13 +463,13 @@ sched(void)
 void
 yield(void)
 {
-  acquire(&ptable.lock);  //DOC: yieldlock
-  //pushcli();
-  myproc()->state = RUNNABLE;
-  //while(!cas(&(myproc()->state),RUNNING,_RUNNABLE));
+  // acquire(&ptable.lock);  //DOC: yieldlock
+  pushcli();
+  // myproc()->state = RUNNABLE;
+  while(!cas(&(myproc()->state),RUNNING,_RUNNABLE));
   sched();
-  //popcli();
-  release(&ptable.lock);
+  popcli();
+  // release(&ptable.lock);
 }
 
 // A fork child's very first scheduling by scheduler()
@@ -476,8 +479,8 @@ forkret(void)
 {
   static int first = 1;
   // Still holding ptable.lock from scheduler.
-  release(&ptable.lock);
-  //popcli();
+  // release(&ptable.lock);
+  popcli();
 
   if (first) {
     // Some initialization functions must be run in the context
@@ -503,7 +506,7 @@ sleep(void *chan, struct spinlock *lk)
 
   if(lk == 0)
     panic("sleep without lk");
-  //pushcli();
+  pushcli();
 
   // Must acquire ptable.lock in order to
   // change p->state and then call sched.
@@ -512,7 +515,7 @@ sleep(void *chan, struct spinlock *lk)
   // (wakeup runs with ptable.lock locked),
   // so it's okay to release lk.
   if(lk != &ptable.lock){  //DOC: sleeplock0
-    acquire(&ptable.lock);  //DOC: sleeplock1
+  //   acquire(&ptable.lock);  //DOC: sleeplock1
     release(lk);
   }
   // Go to sleep.
@@ -527,10 +530,10 @@ sleep(void *chan, struct spinlock *lk)
 
   // Reacquire original lock.
   if(lk != &ptable.lock){  //DOC: sleeplock2
-    release(&ptable.lock);
+    // release(&ptable.lock);
     acquire(lk);
   }
-  //popcli();
+  popcli();
 
 }
 
@@ -809,5 +812,6 @@ void sigret(void)
   struct proc *p = myproc();
 
   memmove(p->tf, p->user_trap_frame_backup,sizeof(struct trapframe));
+
   p->handeling_signal = 0;
 }

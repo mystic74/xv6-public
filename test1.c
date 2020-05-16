@@ -60,7 +60,7 @@ void test_inherit_mask()
     struct sigaction mystruct;
     
     mystruct.sa_handler = &stupid_handler2;
-    mystruct.sigmask = (1 << (MY_SIGSIG);
+    mystruct.sigmask = (1 << (MY_SIGSIG));
 
     sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
 
@@ -96,7 +96,7 @@ void test_mask()
     if (childid == 0)
     {
         mystruct.sa_handler = &stupid_handler2;
-        mystruct.sigmask = (1 << (MY_SIGSIG);
+        mystruct.sigmask = (1 << (MY_SIGSIG));
 
         sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
 
