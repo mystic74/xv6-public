@@ -102,6 +102,7 @@ allocproc(void)
 
 found:
   p->state = EMBRYO;
+  p->handeling_signal = 0;
   release(&ptable.lock);
 
   p->pid = allocpid();
@@ -131,7 +132,7 @@ found:
   {
     p->signals_handlers[i] = (void *) SIG_DFL;
   }
-  
+
   return p;
 }
 
@@ -680,10 +681,17 @@ void handle_signals()
 
     for (i = 0; i < NUM_OF_SIGNALS; ++i)
     {
-      
+
       // Check to see if we have a signal to begin with..
       if ((!checkbit(p->pending_signals,i)) || (checkbit(p->signal_mask,i)))
         continue;
+
+      if (p->handeling_signal == 1)
+      {
+          // cprintf("already handleing \n");
+          return;
+      }
+      p->handeling_signal = 1;
 
       // We do. get the handler
       void* handler = p->signals_handlers[i];
@@ -722,10 +730,7 @@ void handle_signals()
       //user_signal_handler
       
       //create backup for the user current trapframe
-      trapframe_backup(); 
-      if (p->handeling_signal == 1)
-        return;
-      p->handeling_signal = 1;
+      trapframe_backup();
       flipbit(p->pending_signals, i);
       uint size = (uint)((&end_sigret) - (&start_sigret));
       p->tf->esp -= size;
@@ -748,7 +753,8 @@ void handle_signals()
 void trapframe_backup(void)
 {
   struct proc *p = myproc();
-  memmove(p->user_trap_frame_backup, p->tf ,sizeof(struct trapframe));
+  // cprintf("Backing up... \n");
+  memmove(&p->user_trap_frame_backup, p->tf ,sizeof(struct trapframe));
 
 }
 
@@ -756,7 +762,8 @@ void trapframe_backup(void)
 void sigret(void)
 {
   struct proc *p = myproc();
-
-  memmove(p->tf, p->user_trap_frame_backup,sizeof(struct trapframe));
+  // cprintf("Recovering... \n");
   p->handeling_signal = 0;
+  memmove(p->tf, &p->user_trap_frame_backup,sizeof(struct trapframe));
+  
 }
