@@ -132,7 +132,7 @@ xchg(volatile uint *addr, uint newval)
 
 
 static inline int
-other_cas(volatile void* addr, int expected, int newval) {
+cas(volatile void* addr, int expected, int newval) {
     int ret;
     asm volatile("movl %2 , %%eax\n\t"
                 "lock; cmpxchg %3, %0\n\t"
@@ -147,7 +147,7 @@ other_cas(volatile void* addr, int expected, int newval) {
 }
 
 
-static inline int
+/*static inline int
 cas(volatile void* addr, int expected, int newval)
 {
     uint result;
@@ -161,7 +161,7 @@ cas(volatile void* addr, int expected, int newval)
                "a"(expected), "b"(addr), "r"(newval) :
                "memory");
   return result;
-}
+}*/
 static inline uint
 rcr2(void)
 {
