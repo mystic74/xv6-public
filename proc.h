@@ -35,6 +35,43 @@ struct context {
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE,
                 _UNUSED,_EMBRYO, _SLEEPING, _RUNNABLE, _RUNNING, _ZOMBIE };
 
+struct trapframe2 {
+  // registers as pushed by pusha
+  uint edi;
+  uint esi;
+  uint ebp;
+  uint oesp;      // useless & ignored
+  uint ebx;
+  uint edx;
+  uint ecx;
+  uint eax;
+
+  // rest of trap frame
+  ushort gs;
+  ushort padding1;
+  ushort fs;
+  ushort padding2;
+  ushort es;
+  ushort padding3;
+  ushort ds;
+  ushort padding4;
+  uint trapno;
+
+  // below here defined by x86 hardware
+  uint err;
+  uint eip;
+  ushort cs;
+  ushort padding5;
+  uint eflags;
+
+  // below here only when crossing rings, such as from user to kernel
+  uint esp;
+  ushort ss;
+  ushort padding6;
+};
+
+
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -44,7 +81,7 @@ struct proc {
   int pid;                     // Process ID
   struct proc *parent;         // Parent process
   struct trapframe *tf;        // Trap frame for current syscall
-  struct context *context;     // swtch() here to run process
+  struct context *context;     // swtch() here to run processs
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
   int stopped;                  //1 if SIGSTOP received
@@ -54,9 +91,9 @@ struct proc {
   uint pending_signals;
   uint signal_mask; 
   void* signals_handlers[32];
-  struct trapframe* user_trap_frame_backup;
+  struct trapframe2 user_trap_frame_backup;
 
-  int handeling_signal;
+  volatile int handeling_signal;
 };
 
 struct sigaction{
