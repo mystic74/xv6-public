@@ -451,9 +451,9 @@ void scheduler(void)
         // TODO TomR : Shouldn't get here.
         //  cprintf("Error, shouldn't get here, assert? \n");
       }
-      if (cas(&(p->state), _ZOMBIE, ZOMBIE))
+      if (cas(&(p->state), _ZOMBIE, ZOMBIE) || (cas(&(p->state), ZOMBIE, ZOMBIE)))
       {
-        // TODO TomR : Not done.
+        wakeup1(p->parent); // TODO TomR : Not done.
       }
     }
     //release(&ptable.lock);
