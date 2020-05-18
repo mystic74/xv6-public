@@ -303,7 +303,7 @@ void exit(void)
     if (p->parent == curproc)
     {
       p->parent = initproc;
-      if (p->state == ZOMBIE)//||p->state == _ZOMBIE)
+      if (p->state == ZOMBIE) //||p->state == _ZOMBIE)
         wakeup1(initproc);
     }
   }
@@ -311,6 +311,7 @@ void exit(void)
   // Jump into the scheduler, never to return.
   // curproc->state = ZOMBIE;
   cas(&(curproc->state), RUNNING, _ZOMBIE);
+
   sched();
   panic("zombie exit");
 }
@@ -342,10 +343,7 @@ int wait(void)
       if (p->parent != curproc)
         continue;
       havekids = 1;
-      if (p->state == _ZOMBIE)
-      {
-        cprintf("im a _zombie\n\n\n\n");
-      }
+
       // TODO TomR : Need this?
       //while (p->state == _ZOMBIE);
       if (p->state == ZOMBIE)
