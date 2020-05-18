@@ -360,6 +360,7 @@ int wait(void)
         // _UNUSED?
         p->state = UNUSED;
         cas(&curproc->state, _SLEEPING, RUNNING);
+        cas(&(curproc->state), SLEEPING, RUNNING);
         // release(&ptable.lock);
         popcli();
         return pid;
@@ -370,8 +371,12 @@ int wait(void)
     if (!havekids || curproc->killed)
     {
       curproc->chan = 0;
+      // TODO TomR:
+      // Should all this be _RUNNING?
       cas(&(curproc->state), _SLEEPING, RUNNING);
-      //cas(&(curproc->state), _SLEEPING, SLEEPING);
+
+      // If sched changed this.
+      cas(&(curproc->state), SLEEPING, RUNNING);
       // release(&ptable.lock);
       popcli();
       return -1;
