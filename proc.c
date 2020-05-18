@@ -292,11 +292,9 @@ void exit(void)
 
   pushcli();
   // acquire(&ptable.lock);
-  cas(&curproc->state, RUNNING, _ZOMBIE);
+  // cas(&curproc->state, RUNNING, _ZOMBIE);
   //curproc->state = _ZOMBIE;
   // Parent might be sleeping in wait().
-
-  // TODO TomR ?
   wakeup1(curproc->parent);
 
   // Pass abandoned children to init.
