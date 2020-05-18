@@ -293,6 +293,7 @@ void exit(void)
   pushcli();
   // acquire(&ptable.lock);
   cas(&curproc->state, RUNNING, _ZOMBIE);
+  //curproc->state = _ZOMBIE;
   // Parent might be sleeping in wait().
 
   // TODO TomR ?
@@ -304,7 +305,7 @@ void exit(void)
     if (p->parent == curproc)
     {
       p->parent = initproc;
-      if (p->state == ZOMBIE) //||p->state == _ZOMBIE)
+      if (p->state == ZOMBIE)//||p->state == _ZOMBIE)
         wakeup1(initproc);
     }
   }
@@ -343,10 +344,12 @@ int wait(void)
       if (p->parent != curproc)
         continue;
       havekids = 1;
-
+      if (p->state == _ZOMBIE)
+      {
+        cprintf("im a _zombie\n\n\n\n");
+      }
       // TODO TomR : Need this?
-      while (p->state == _ZOMBIE)
-        ;
+      //while (p->state == _ZOMBIE);
       if (p->state == ZOMBIE)
       {
         // Found one.
@@ -372,7 +375,7 @@ int wait(void)
     {
       curproc->chan = 0;
       cas(&(curproc->state), _SLEEPING, RUNNING);
-      // cas(&(curproc->state), _SLEEPING, SLEEPING);
+      //cas(&(curproc->state), _SLEEPING, SLEEPING);
       // release(&ptable.lock);
       popcli();
       return -1;
