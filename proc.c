@@ -368,7 +368,7 @@ int wait(void)
     // No point waiting if we don't have any children.
     if (!havekids || curproc->killed)
     {
-      curproc->chan = 0;
+      //curproc->chan = 0;
       // TODO TomR:
       // Should all this be _RUNNING?
       cas(&(curproc->state), _SLEEPING, RUNNING);
@@ -539,8 +539,8 @@ void sleep(void *chan, struct spinlock *lk)
   p->chan = chan;
   // p->state = SLEEPING;
   //cprintf("Going to actual sleep\n");
-  cas(&(p->state), RUNNING, _SLEEPING);
-
+  //cas(&(p->state), RUNNING, _SLEEPING);
+  p->state = _SLEEPING;
   sched();
 
   // Tidy up.
