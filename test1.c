@@ -62,6 +62,15 @@ void reg_handler_with_sig_and_mask(const void *new_handler, const int SIG, const
 
     sigaction(SIG, &mystruct, (void *)NULL);
 }
+void reg_stupidhandler1_with_sig_and_mask(const int SIG, const int mask)
+{
+    struct sigaction mystruct;
+
+    mystruct.sa_handler = &stupid_handler1;
+    mystruct.sigmask = mask;
+
+    sigaction(SIG, &mystruct, (void *)NULL);
+}
 
 void reg_stupidhandler2_with_sig_and_mask(const int SIG, const int mask)
 {
@@ -189,39 +198,6 @@ void test_inherit_mask()
 
     if (childid == 0)
     {
-        // In child we should halt for a while.
-        reg_stupidhandler1();
-
-        // loop for a while?
-        dummy_loop();
-    }
-    else
-    {
-
-        printf(1, "Entering father");
-        // In parent
-        printf(1, "sleeping for a second for syncing parent... \n");
-        sleep(1);
-        printf(1, "setting child to pause\n");
-
-        // Sending stop to child.
-        kill(childid, MY_SIGSIG);
-    }
-}
-
-void test_mask()
-{
-    int childid;
-    childid = fork();
-    struct sigaction mystruct;
-
-    if (childid == 0)
-    {
-        mystruct.sa_handler = &stupid_handler2;
-        mystruct.sigmask = (1 << (MY_SIGSIG));
-
-        sigaction(MY_SIGSIG, &mystruct, (void *)NULL);
-
         // loop for a while?
         dummy_loop();
     }
@@ -231,11 +207,66 @@ void test_mask()
         printf(1, "Entering father\n");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
-        sleep(3);
-        printf(1, "sending sigsig to child\n");
+        sleep(100);
 
         // Sending stop to child.
         kill(childid, MY_SIGSIG);
+    }
+}
+
+void test_inherit_sig_handler()
+{
+    int childid;
+    childid = fork();
+    struct sigaction mystruct;
+
+    mystruct.sa_handler = &stupid_handler2;
+    mystruct.sigmask = 0;
+
+    sigaction(MY_SIGSIG, &mystruct, (void *)NULL);
+
+    if (childid == 0)
+    {
+        // loop for a while?
+        dummy_loop();
+    }
+    else
+    {
+
+        printf(1, "Entering father\n");
+        // In parent
+        printf(1, "sleeping for a second for syncing parent... \n");
+        sleep(100);
+        printf(1, "expecting second stupid handler... \n");
+        // Sending stop to child.
+        kill(childid, MY_SIGSIG);
+    }
+}
+
+void test_mask()
+{
+    int childid;
+    childid = fork();
+    int mask = (1 << MY_SIGSIG);
+    if (childid == 0)
+    {
+        reg_stupidhandler1_with_sig_and_mask(MY_SIGSIG, mask);
+        reg_stupidhandler2_with_sig_and_mask(MY_OTHER_SIGIG, mask);
+        // loop for a while?
+        dummy_loop();
+    }
+    else
+    {
+
+        printf(1, "Entering father\n");
+        // In parent
+        printf(1, "sleeping for a second for syncing parent... \n");
+        sleep(100);
+        printf(1, "sending sigsig to child, expect print only from second stupid handler\n");
+
+        // Sending stop to child.
+        kill(childid, MY_SIGSIG);
+        kill(childid, MY_OTHER_SIGIG);
     }
 }
 
@@ -287,7 +318,7 @@ void test_handler_suspended()
     else
     {
 
-        printf(1, "Entering father");
+        printf(1, "Entering father\n");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
         sleep(500);
@@ -324,12 +355,13 @@ void test_stop_overide_fail()
 
         if (sigaction(SIGSTOP, &mystruct, (void *)NULL) < 0)
         {
-            printf("sigaction for signal %d failed \n", SIGSTOP);
+            printf(1, "sigaction for signal %d failed \n", SIGSTOP);
         }
         else
         {
-            printf("sigaction for signal %d succeded \n", SIGSTOP);
+            printf(1, "sigaction for signal %d succeded \n", SIGSTOP);
         }
+        exit();
     }
 }
 
@@ -347,12 +379,13 @@ void test_kill_overide_fail()
 
         if (sigaction(SIGKILL, &mystruct, (void *)NULL) < 0)
         {
-            printf("sigaction for signal %d failed \n", SIGKILL);
+            printf(1, "sigaction for signal %d failed \n", SIGKILL);
         }
         else
         {
-            printf("sigaction for signal %d succeded \n", SIGKILL);
+            printf(1, "sigaction for signal %d succeded \n", SIGKILL);
         }
+        exit();
     }
 }
 
@@ -373,7 +406,7 @@ void test_handler_suspended_overwrite_cont()
     else
     {
 
-        printf(1, "Entering father");
+        printf(1, "Entering father\n");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
         sleep(100);
@@ -411,7 +444,7 @@ void test_handler_suspended_no_cont()
     }
     else
     {
-        printf(1, "Entering father");
+        printf(1, "Entering father\n");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
         sleep(1);
@@ -442,7 +475,7 @@ void test_double_regist_same_sig_print()
     }
     else
     {
-        printf(1, "Entering father");
+        printf(1, "Entering father\n");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
         sleep(100);
@@ -469,7 +502,7 @@ void test_double_regist_print()
     }
     else
     {
-        printf(1, "Entering father");
+        printf(1, "Entering father\n");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
         sleep(100);
@@ -538,6 +571,11 @@ void test_basic_loop()
 
 int main()
 {
+    printf(1, "expected failed for overiding kill: \n");
+    test_kill_overide_fail();
+    printf(1, "expected failed for overiding stop: \n");
+    test_stop_overide_fail();
+    sleep(400);
 
     printf(1, "Basic fork and signal: \n");
     test_basic_fork_and_sigsig();
@@ -559,7 +597,17 @@ int main()
     printf(1, "\n\n\n Testin suspend with overwrite cont \n");
     test_handler_suspended_overwrite_cont();
 
-    test_kill_overide_fail();
+    sleep(1000);
+    printf(1, "\n\n\n Testing mask for process signal \n");
+    test_mask();
+
+    sleep(1000);
+    printf(1, "\n\n\n Testing signal handeling for process sons signal \n");
+    test_inherit_sig_handler();
+
+    sleep(1000);
+    printf(1, "\n\n\n Testing mask for process sons signal \n");
+    test_inherit_mask();
     // sleep(1000);
     /*
         PLEASE NOTICE, THIS TEST DOENS'T END. AT ALL.
