@@ -11,16 +11,14 @@ void stupid_handler1(int numnum);
 void stupid_handler2(int numnum);
 void dummy_loop();
 
-
-int pid_array[proc_number+1];
+int pid_array[proc_number + 1];
 void init_pid_array()
 {
     int i;
-    for (i=0;i<proc_number+1;i++)
+    for (i = 0; i < proc_number + 1; i++)
     {
         pid_array[i] = -1;
     }
-
 }
 void dummy_sleep()
 {
@@ -32,18 +30,15 @@ void dummy_sleep()
 void dummy_action()
 {
     struct sigaction mystruct;
-    
+
     mystruct.sa_handler = &stupid_handler1;
     mystruct.sigmask = 0x0;
-    
-    printf(1," address is %x, setting in param \n", &stupid_handler1);
+
+    printf(1, " address is %x, setting in param \n", &stupid_handler1);
     printf(1, "This is the action registering function for proc :%d  \n", getpid());
 
-    sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
-
-
+    sigaction(MY_SIGSIG, &mystruct, (void *)NULL);
 }
-
 
 void stupid_handler1(int numnum)
 {
@@ -58,83 +53,87 @@ void stupid_handler2(int numnum)
     printf(1, "this is the signal number! %d \n", numnum);
 }
 
+void reg_handler_with_sig_and_mask(const void *new_handler, const int SIG, const int mask)
+{
+    struct sigaction mystruct;
+
+    mystruct.sa_handler = new_handler;
+    mystruct.sigmask = mask;
+
+    sigaction(SIG, &mystruct, (void *)NULL);
+}
+
 void reg_stupidhandler2_with_sig_and_mask(const int SIG, const int mask)
 {
     struct sigaction mystruct;
-    
+
     mystruct.sa_handler = &stupid_handler2;
     mystruct.sigmask = mask;
-    
-    sigaction(SIG,  &mystruct, (void*)NULL);
-}
 
+    sigaction(SIG, &mystruct, (void *)NULL);
+}
 
 void reg_stupidhandler2_with_sig(const int SIG)
 {
     struct sigaction mystruct;
-    
+
     mystruct.sa_handler = &stupid_handler2;
     mystruct.sigmask = 0x0;
-    
-    sigaction(SIG,  &mystruct, (void*)NULL);
-}
 
+    sigaction(SIG, &mystruct, (void *)NULL);
+}
 
 void reg_stupidhandler1()
 {
     struct sigaction mystruct;
-    
+
     mystruct.sa_handler = &stupid_handler1;
     mystruct.sigmask = 0x0;
-    
-    sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
+
+    sigaction(MY_SIGSIG, &mystruct, (void *)NULL);
 }
 
 void reg_stupidhandler2()
 {
     struct sigaction mystruct;
-    
+
     mystruct.sa_handler = &stupid_handler2;
     mystruct.sigmask = 0x0;
-    
-    sigaction(MY_OTHER_SIGIG,  &mystruct, (void*)NULL);
+
+    sigaction(MY_OTHER_SIGIG, &mystruct, (void *)NULL);
 }
-
-
 
 void dummy_loop()
 {
     uint i = 0xBABE;
     int uptime_org = uptime();
     int uptime_digit = uptime_org % 100;
-    
-        dummy_action();
-   
+
+    dummy_action();
+
     uint dummy = 0;
     while (i--)
         dummy += i;
 
     sleep(uptime_digit);
 
-
     sleep(400);
     printf(1, "testprint for %d! \n", getpid());
-    sleep(500);
-
-
+    sleep(1000);
+    while (dummy--)
+        i++;
     printf(1, "%d was here, slept for %x seconds, lived for %d ticks and died :( \n",
-                getpid(), uptime_digit, uptime()- uptime_org);
-    
-    
+           getpid(), uptime_digit, uptime() - uptime_org);
+
     exit();
 }
 
-int find_pid (int curpid)
+int find_pid(int curpid)
 {
     int i;
-    for (i=1;i<proc_number+1;i++)
+    for (i = 1; i < proc_number + 1; i++)
     {
-        if (pid_array[i]!=curpid && pid_array[i] != -1)
+        if (pid_array[i] != curpid && pid_array[i] != -1)
             return pid_array[i];
     }
     return -1;
@@ -142,20 +141,20 @@ int find_pid (int curpid)
 
 void sending_kernel_signals()
 {
-    
+
     int curpid = getpid();
     int send_to = find_pid(curpid);
     if (send_to != -1)
     {
-        
-        kill (send_to, SIGKILL);
-        
-        kill (send_to,SIGSTOP);
-        
-        kill (send_to,SIGCONT);
-        
-        kill (send_to - 1,MY_SIGSIG);
-        kill (send_to,MY_SIGSIG);
+
+        kill(send_to, SIGKILL);
+
+        kill(send_to, SIGSTOP);
+
+        kill(send_to, SIGCONT);
+
+        kill(send_to - 1, MY_SIGSIG);
+        kill(send_to, MY_SIGSIG);
     }
 }
 
@@ -164,7 +163,7 @@ int random_math_loop()
     uint mathnum = 0;
     uint numnum = getpid();
     numnum = numnum * numnum;
-    
+
     while (mathnum < numnum)
     {
         if ((mathnum * mathnum) == numnum)
@@ -179,17 +178,16 @@ int random_math_loop()
     return 1;
 }
 
-
 void test_inherit_mask()
 {
     int childid;
     childid = fork();
     struct sigaction mystruct;
-    
+
     mystruct.sa_handler = &stupid_handler2;
     mystruct.sigmask = (1 << (MY_SIGSIG));
 
-    sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
+    sigaction(MY_SIGSIG, &mystruct, (void *)NULL);
 
     if (childid == 0)
     {
@@ -197,7 +195,7 @@ void test_inherit_mask()
         reg_stupidhandler1();
 
         // loop for a while?
-        dummy_loop();        
+        dummy_loop();
     }
     else
     {
@@ -218,17 +216,16 @@ void test_mask()
     int childid;
     childid = fork();
     struct sigaction mystruct;
-    
-    
+
     if (childid == 0)
     {
         mystruct.sa_handler = &stupid_handler2;
         mystruct.sigmask = (1 << (MY_SIGSIG));
 
-        sigaction(MY_SIGSIG,  &mystruct, (void*)NULL);
+        sigaction(MY_SIGSIG, &mystruct, (void *)NULL);
 
         // loop for a while?
-        dummy_loop();        
+        dummy_loop();
     }
     else
     {
@@ -255,7 +252,7 @@ void test_kill_suspended()
         reg_stupidhandler1();
 
         // loop for a while?
-        dummy_loop();        
+        dummy_loop();
     }
     else
     {
@@ -272,7 +269,7 @@ void test_kill_suspended()
         printf(1, "setting child kill sig!\n");
 
         kill(childid, SIGKILL);
-    }    
+    }
 }
 
 void test_handler_suspended()
@@ -287,7 +284,7 @@ void test_handler_suspended()
 
         reg_stupidhandler2();
         // loop for a while?
-        dummy_loop();        
+        dummy_loop();
     }
     else
     {
@@ -296,24 +293,62 @@ void test_handler_suspended()
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
         sleep(1);
-        printf(1, "setting child to pause\n");
+        printf(1, "setting child to pause and sleeping for 100ticks \n");
 
         // Sending stop to child.
         kill(childid, SIGSTOP);
-
+        sleep(100);
         printf(1, "sending sigsig to child\n");
 
         // sending the dumb signal now, expecting NO PRINT.
         kill(childid, MY_SIGSIG);
+        printf(1, "setting child to continue\n");
 
         // Sending Continue
-        kill (childid, SIGCONT);
-
+        kill(childid, SIGCONT);
+        sleep(300);
+        printf(1, "Sening another signal\n");
         kill(childid, MY_OTHER_SIGIG);
     }
-    
 }
 
+void test_handler_suspended_overwrite_cont()
+{
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+        // In child we should halt for a while.
+        reg_handler_with_sig_and_mask((void *)SIGCONT, MY_SIGSIG, 0x0);
+
+        reg_stupidhandler2_with_sig(SIGCONT);
+        // loop for a while?
+        dummy_loop();
+    }
+    else
+    {
+
+        printf(1, "Entering father");
+        // In parent
+        printf(1, "sleeping for a second for syncing parent... \n");
+        sleep(1);
+        printf(1, "setting child to pause and sleeping for 100 ticks \n");
+
+        // Sending stop to child.
+        kill(childid, SIGSTOP);
+        sleep(100);
+
+        printf(1, "sending sigsig to child (Now sig cont) \n");
+        // sending the dumb signal now
+        kill(childid, MY_SIGSIG);
+
+        sleep(300);
+        printf(1, "sending stupid sighandler2 \n");
+        // Sending Continue
+        kill(childid, SIGCONT);
+    }
+}
 
 void test_handler_suspended_no_cont()
 {
@@ -326,7 +361,7 @@ void test_handler_suspended_no_cont()
         reg_stupidhandler1();
 
         // loop for a while?
-        dummy_loop();        
+        dummy_loop();
     }
     else
     {
@@ -338,13 +373,11 @@ void test_handler_suspended_no_cont()
 
         // Sending stop to child.
         kill(childid, SIGSTOP);
-
+        sleep(100);
         // sending the dumb signal now, expecting NO PRINT.
         kill(childid, MY_SIGSIG);
     }
-    
 }
-
 
 void test_double_regist_same_sig_print()
 {
@@ -355,11 +388,11 @@ void test_double_regist_same_sig_print()
     {
         // In child we should halt for a while.
         reg_stupidhandler1();
- 
+
         reg_stupidhandler2_with_sig(MY_SIGSIG);
 
         // loop for a while?
-        dummy_loop();        
+        dummy_loop();
     }
     else
     {
@@ -370,7 +403,7 @@ void test_double_regist_same_sig_print()
         printf(1, "sending the signal to the process \n");
         // sending the dumb signal now, expecting NO PRINT.
         kill(childid, MY_SIGSIG);
-    }    
+    }
 }
 
 void test_double_regist_print()
@@ -382,11 +415,11 @@ void test_double_regist_print()
     {
         // In child we should halt for a while.
         reg_stupidhandler1();
- 
+
         reg_stupidhandler2();
 
         // loop for a while?
-        dummy_loop();        
+        dummy_loop();
     }
     else
     {
@@ -397,9 +430,9 @@ void test_double_regist_print()
         printf(1, "sending the signal to the process \n");
         // sending the dumb signal now, expecting NO PRINT.
         kill(childid, MY_SIGSIG);
-        
+
         kill(childid, MY_OTHER_SIGIG);
-    }    
+    }
 }
 
 void test_basic_fork_and_sigsig()
@@ -413,11 +446,11 @@ void test_basic_fork_and_sigsig()
         reg_stupidhandler1();
 
         // l'oop for a while?
-        dummy_loop();        
+        dummy_loop();
     }
     else
     {
-        printf(1, "Entering father");
+        printf(1, "Entering father\n");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
         sleep(1);
@@ -425,7 +458,6 @@ void test_basic_fork_and_sigsig()
         // sending the dumb signal now, expecting NO PRINT.
         kill(childid, MY_SIGSIG);
     }
-    
 }
 
 void test_basic_loop()
@@ -451,7 +483,7 @@ void test_basic_loop()
     if ((pid3 = fork()) == 0)
     {
         pid_array[3] = getpid();
-        
+
         //sending_kernel_signals();
         dummy_loop();
         //dummy_loop();
@@ -460,22 +492,31 @@ void test_basic_loop()
 
 int main()
 {
-  
+
     printf(1, "Basic fork and signal: \n");
     test_basic_fork_and_sigsig();
-    sleep(10);
- 
- 
-    printf(1, "\n\n\n\n\nBasic two signals: \n");
-    test_double_regist_print();
-    sleep(100);
-        
-    printf(1, "\n\n\n\nTesting same sig registration\n");
-    test_double_regist_same_sig_print();
-  
+    sleep(500);
+
+    // printf(1, "\n\n\n\n\nBasic two signals: \n");
+    // test_double_regist_print();
+    // sleep(500);
+
+    // printf(1, "\n\n\n\nTesting same sig registration\n");
+    // test_double_regist_same_sig_print();
+
+    // sleep(500);
+    printf(1, "\n\n\n Testin suspend with cont \n");
+    test_handler_suspended_overwrite_cont();
+
+    // sleep(1000);
+    /*
+        PLEASE NOTICE, THIS TEST DOENS'T END. AT ALL.
+    */
+    // printf(1, "\n\n\n Testin suspend with no cont \n");
+    // test_handler_suspended_no_cont();
+
     while ((wait()) > 0)
         ;
 
     exit();
 }
-
