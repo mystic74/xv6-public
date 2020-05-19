@@ -290,7 +290,7 @@ void test_handler_suspended()
         printf(1, "Entering father");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
-        sleep(1);
+        sleep(500);
         printf(1, "setting child to pause and sleeping for 100ticks \n");
 
         // Sending stop to child.
@@ -307,6 +307,52 @@ void test_handler_suspended()
         sleep(300);
         printf(1, "Sening another signal\n");
         kill(childid, MY_OTHER_SIGIG);
+    }
+}
+
+void test_stop_overide_fail()
+{
+    struct sigaction mystruct;
+
+    mystruct.sa_handler = &stupid_handler1;
+    mystruct.sigmask = 0;
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+
+        if (sigaction(SIGSTOP, &mystruct, (void *)NULL) < 0)
+        {
+            printf("sigaction for signal %d failed \n", SIGSTOP);
+        }
+        else
+        {
+            printf("sigaction for signal %d succeded \n", SIGSTOP);
+        }
+    }
+}
+
+void test_kill_overide_fail()
+{
+    struct sigaction mystruct;
+
+    mystruct.sa_handler = &stupid_handler1;
+    mystruct.sigmask = 0;
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+
+        if (sigaction(SIGKILL, &mystruct, (void *)NULL) < 0)
+        {
+            printf("sigaction for signal %d failed \n", SIGKILL);
+        }
+        else
+        {
+            printf("sigaction for signal %d succeded \n", SIGKILL);
+        }
     }
 }
 
@@ -505,9 +551,15 @@ int main()
     test_double_regist_same_sig_print();
 
     sleep(1000);
+
+    printf(1, "\n\n\n Testin suspend with  cont \n");
+    test_handler_suspended();
+
+    sleep(1000);
     printf(1, "\n\n\n Testin suspend with overwrite cont \n");
     test_handler_suspended_overwrite_cont();
 
+    test_kill_overide_fail();
     // sleep(1000);
     /*
         PLEASE NOTICE, THIS TEST DOENS'T END. AT ALL.
