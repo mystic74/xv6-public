@@ -330,10 +330,8 @@ int wait(void)
   for (;;)
   {
     // Scan through table looking for exited children.
-    if (cas(&(curproc->state), RUNNING, _SLEEPING))
-    {
-      //return -1;
-    }
+
+    cas(&(curproc->state), RUNNING, _SLEEPING);
 
     curproc->chan = (void *)curproc;
     havekids = 0;
@@ -342,11 +340,10 @@ int wait(void)
     {
       if (p->parent != curproc)
         continue;
+
       havekids = 1;
 
-      // TODO TomR : Need this?
-      //while (p->state == _ZOMBIE);
-      if (p->state == ZOMBIE)
+      if (cas(&p->state, ZOMBIE, _UNUSED))
       {
         // Found one.
         pid = p->pid;
@@ -357,10 +354,8 @@ int wait(void)
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
-        // _UNUSED?
-        p->state = UNUSED;
-        cas(&curproc->state, _SLEEPING, RUNNING);
-        cas(&(curproc->state), SLEEPING, RUNNING);
+        cas(&(curproc->state), _SLEEPING, RUNNING);
+        cas(&p->state, _UNUSED, UNUSED);
         // release(&ptable.lock);
         popcli();
         return pid;
@@ -374,9 +369,6 @@ int wait(void)
       // TODO TomR:
       // Should all this be _RUNNING?
       cas(&(curproc->state), _SLEEPING, RUNNING);
-
-      // If sched changed this.
-      cas(&(curproc->state), SLEEPING, RUNNING);
       // release(&ptable.lock);
       popcli();
       return -1;
@@ -441,17 +433,13 @@ void scheduler(void)
       {
         if (cas(&p->killed, 1, 0))
         {
-          cprintf("Got sleeping process. \n");
           cas(&(p->state), SLEEPING, RUNNABLE);
         }
       }
 
-      if (cas(&(p->state), _RUNNABLE, RUNNABLE))
-      {
-        // TODO TomR : Shouldn't get here.
-        //  cprintf("Error, shouldn't get here, assert? \n");
-      }
-      if (cas(&(p->state), _ZOMBIE, ZOMBIE) || (cas(&(p->state), ZOMBIE, ZOMBIE)))
+      cas(&(p->state), _RUNNABLE, RUNNABLE);
+
+      if (cas(&(p->state), _ZOMBIE, ZOMBIE))
       {
         wakeup1(p->parent); // TODO TomR : Not done.
       }
@@ -548,6 +536,7 @@ void sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   // p->state = SLEEPING;
+  //cprintf("Going to actual sleep\n");
   cas(&(p->state), RUNNING, _SLEEPING);
 
   sched();
@@ -573,7 +562,7 @@ wakeup1(void *chan)
   struct proc *p;
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if (p->chan == chan && (p->state == SLEEPING || p->state == _SLEEPING))
+    if ((p->state == SLEEPING || p->state == _SLEEPING) && (p->chan == chan))
     {
       while (p->state == _SLEEPING)
         ;
@@ -581,10 +570,7 @@ wakeup1(void *chan)
       if (cas(&(p->state), SLEEPING, _RUNNABLE))
       {
         p->chan = 0;
-        if (cas(&(p->state), _RUNNABLE, RUNNABLE))
-        {
-          //cprintf("Moving from neg runabble to runnable \n");
-        }
+        cas(&(p->state), _RUNNABLE, RUNNABLE);
       }
     }
 }
@@ -663,8 +649,9 @@ int kill(int pid, int signum)
       //p->killed = 1;
       p->pending_signals |= (uint)(1 << signum);
       // Wake process from sleep if necessary.
-      if (p->state == SLEEPING)
-        cas(&(p->state), SLEEPING, RUNNABLE);
+      // if (p->state == SLEEPING)
+      cas(&(p->state), SLEEPING, RUNNABLE);
+      cas(&(p->state), _SLEEPING, RUNNABLE);
       //p->state = RUNNABLE;
       //release(&ptable.lock);
       popcli();
