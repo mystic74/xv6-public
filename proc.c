@@ -693,35 +693,35 @@ int SIG_KILL(int sig)
 {
   struct proc *p = myproc();
 
-  acquire(&ptable.lock);
-  //pushcli();
+  //acquire(&ptable.lock);
+  pushcli();
   p->killed = 1;
 
   p->pending_signals ^= (1 << sig);
 
-  release(&ptable.lock);
-  //popcli();
+  //release(&ptable.lock);
+  popcli();
   return 0;
 }
 
 int SIG_STOP(int sig)
 {
   struct proc *p = myproc();
-  acquire(&ptable.lock);
-  //pushcli();
+  //acquire(&ptable.lock);
+  pushcli();
   p->stopped = 1;
   p->pending_signals ^= (1 << sig);
   p->handeling_signal = 0;
-  release(&ptable.lock);
-  //popcli();
+  //release(&ptable.lock);
+  popcli();
   return -1;
 }
 
 int SIG_CONT(int sig)
 {
   struct proc *p = myproc();
-  acquire(&ptable.lock);
-  //pushcli();
+  //acquire(&ptable.lock);
+  pushcli();
   if (p->stopped == 1)
   {
     p->pending_signals ^= (1 << sig);
@@ -730,8 +730,8 @@ int SIG_CONT(int sig)
   }
   p->handeling_signal = 0;
 
-  release(&ptable.lock);
-  //popcli();
+  //release(&ptable.lock);
+  popcli();
   return 0;
 }
 
