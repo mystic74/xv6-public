@@ -108,7 +108,7 @@ struct proc
   void *signals_handlers[32];
   struct trapframe2 user_trap_frame_backup;
 
-  volatile int handeling_signal;
+  int handeling_signal;
 };
 
 struct sigaction

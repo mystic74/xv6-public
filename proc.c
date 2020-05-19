@@ -22,6 +22,8 @@ extern void start_sigret(void);
 extern void end_sigret(void);
 static void wakeup1(void *chan);
 
+int check_for_handler(struct proc *curproc, void *handler, int handle);
+
 void pinit(void)
 {
   initlock(&ptable.lock, "ptable");
@@ -253,6 +255,7 @@ int fork(void)
   {
     np->signals_handlers[i] = curproc->signals_handlers[i];
   }
+  np->pending_signals = 0;
 
   //acquire(&ptable.lock);
   pushcli();
@@ -404,8 +407,7 @@ void scheduler(void)
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
       //check if SIGSTOP is on and there's no SIGCONT pending signal
-      if (p->stopped == 1 &&
-          !(((uint)1 << SIGCONT) & (p->pending_signals)))
+      if (p->stopped == 1 && !(check_for_handler(p, (void *)SIGCONT, 0)))
       {
         continue;
       }
@@ -635,6 +637,30 @@ void print_in_binary(uint n)
     (n & i) ? cprintf("1") : cprintf("0");
   cprintf("\n");
 }
+
+int check_for_handler(struct proc *curproc, void *handler, int handle)
+{
+  int i = 0;
+  int ret = 0;
+  for (i = 0; i < NUM_OF_SIGNALS; ++i)
+  {
+
+    // Check to see if we have a signal to begin with..
+    if ((!checkbit(curproc->pending_signals, i)) || (checkbit(curproc->signal_mask, i)))
+      continue;
+
+    if (curproc->signals_handlers[i] == handler)
+    {
+      ret = 1;
+      if (handle)
+      {
+        flipbit(curproc->pending_signals, i);
+      }
+    }
+  }
+  return ret;
+}
+
 int kill(int pid, int signum)
 {
   struct proc *p;
@@ -678,51 +704,108 @@ int SIG_KILL(int sig)
   return 0;
 }
 
-int SIG_STOP()
+int SIG_STOP(int sig)
 {
   struct proc *p = myproc();
   acquire(&ptable.lock);
   //pushcli();
-  if (p->state != SLEEPING)
-  {
-    p->stopped = 1;
-    p->pending_signals ^= (1UL << SIGSTOP);
-  }
+  p->stopped = 1;
+  p->pending_signals ^= (1 << sig);
+  p->handeling_signal = 0;
   release(&ptable.lock);
   //popcli();
   return -1;
 }
 
-int SIG_CONT()
+int SIG_CONT(int sig)
 {
   struct proc *p = myproc();
   acquire(&ptable.lock);
   //pushcli();
   if (p->stopped == 1)
   {
+    p->pending_signals ^= (1 << sig);
     p->stopped = 0;
-    p->pending_signals ^= (1UL << SIGCONT);
-    p->pending_signals ^= (1UL << SIGSTOP);
+    p->handeling_signal = 0;
   }
+  p->handeling_signal = 0;
+
   release(&ptable.lock);
   //popcli();
   return 0;
 }
 
-void execute_signal(int sig_number)
+int SIGDFL(int sig)
 {
+
+  switch (sig)
+  {
+  case SIGSTOP:
+
+    SIG_STOP(sig);
+    /* code */
+    break;
+  case (SIGCONT):
+
+    SIG_CONT(sig);
+    break;
+
+  default:
+
+    SIG_KILL(sig);
+    break;
+  }
+
+  //popcli();
+  return 0;
+}
+
+void user_signal_handler(int i, struct proc *p)
+{
+
+  volatile void *handler = p->signals_handlers[i];
+  cprintf("Handeling user sig for address %d \n", handler);
+  trapframe_backup();
+  flipbit(p->pending_signals, i);
+  uint size = (uint)((&end_sigret) - (&start_sigret));
+  p->tf->esp -= size;
+
+  uint funcion_addr = p->tf->esp;
+
+  memmove((void *)p->tf->esp, &start_sigret, size);
+
+  *((int *)(p->tf->esp - 4)) = i;            //push arguments
+  *((int *)(p->tf->esp - 8)) = funcion_addr; //push return addr
+  p->tf->esp -= 8;
+
+  p->tf->eip = ((uint)handler); //jump to the address of the called function
+}
+
+void execute_signal(int sig_number, struct proc *curproc)
+{
+  cprintf("Handeling for %d \n", sig_number);
   switch (sig_number)
   {
   case (SIGSTOP):
-    SIG_STOP();
-    break;
-  case (SIGCONT):
-    SIG_CONT();
+    SIG_STOP(sig_number);
     break;
 
   case (SIGKILL):
-  default:
     SIG_KILL(sig_number);
+    break;
+
+  default:
+    if (curproc->signals_handlers[sig_number] == (int *)SIGCONT)
+    {
+      SIG_CONT(sig_number);
+      ;
+    }
+    else
+    {
+      user_signal_handler(sig_number, curproc);
+    }
+
+    break;
   }
 }
 
@@ -741,8 +824,26 @@ void handle_signals()
 
   //  p freezed and cont is not pending
   //if (p->stoped && ((unsigned)(p->pending_signals&(1UL<<SIGCONT)) == 0))
-  if ((p->stopped) && (checkbit(p->pending_signals, SIGCONT) == 0))
+  if (p->stopped)
+  {
+    if (check_for_handler(p, (void *)SIGCONT, 1) != 0)
+    {
+      // Set as continue.
+      p->stopped = 0;
+      // Disable waiting stop sigs
+      check_for_handler(p, (void *)SIGSTOP, 1);
+    }
+    else
+    {
+      // Stopped and no continue, return.
+      return;
+    }
+  }
+  else if (check_for_handler(p, (void *)SIGSTOP, 1))
+  {
+    p->stopped = 1;
     return;
+  }
 
   for (i = 0; i < NUM_OF_SIGNALS; ++i)
   {
@@ -753,67 +854,48 @@ void handle_signals()
 
     if (p->handeling_signal == 1)
     {
-      // cprintf("already handleing \n");
       return;
     }
     p->handeling_signal = 1;
 
     // We do. get the handler
-    void *handler = p->signals_handlers[i];
+    volatile void *handler = p->signals_handlers[i];
 
-    // If the handler for the bit is sig_ign, set the following
-    // TODO TomR : function?
-    if ((int)handler == SIG_IGN)
+    switch ((uint)handler)
     {
+    case SIGKILL:
+      SIG_KILL(i);
+      break;
+      // If the handler for the bit is sig_ign, set the following
+      // TODO TomR : function?
+
+    case (SIG_IGN):
       cprintf(" SIG_IGN \n");
       //shut down the signal and continue to the next signal
       p->pending_signals ^= (0 ^ p->pending_signals) & (1UL << i);
-      continue;
+      break;
+
+    case (SIG_DFL):
+      SIGDFL(i);
+      break;
+    case (SIGCONT):
+      SIG_CONT(i);
+      break;
+    case (SIGSTOP):
+      SIG_STOP(i);
+      break;
+    // User signal handler.
+    default:
+      user_signal_handler(i, p);
+      break;
     }
-
-    // If the handler is the default one, go and execute it? im not sure whats going on here.
-    if ((int)handler == SIG_DFL)
-    {
-      //cprintf("SIG_DFL \n");
-      //if signal mask is 1, continue withour shutting down the signal
-      // Well check the following:
-      // The pending signal & the binary not of the signal mask bit.
-      //if (((unsigned)(p->pending_signals) & ~((unsigned)(p->signal_mask&(1UL<<i)))) >0)
-      if (checkbit(p->pending_signals, i) && !(checkbit(p->signal_mask, i)))
-        execute_signal(i);
-      continue;
-    }
-    if ((int)handler == SIGSTOP || (int)handler == SIGKILL || (int)handler == SIGCONT)
-    {
-      if (checkbit(p->pending_signals, i) && !(checkbit(p->signal_mask, i)))
-        execute_signal((int)handler);
-      continue;
-    }
-
-    //user_signal_handler
-
-    //create backup for the user current trapframe
-    trapframe_backup();
-    flipbit(p->pending_signals, i);
-    uint size = (uint)((&end_sigret) - (&start_sigret));
-    p->tf->esp -= size;
-
-    uint funcion_addr = p->tf->esp;
-
-    memmove((void *)p->tf->esp, &start_sigret, size);
-
-    *((int *)(p->tf->esp - 4)) = i;            //push arguments
-    *((int *)(p->tf->esp - 8)) = funcion_addr; //push return addr
-    p->tf->esp -= 8;
-
-    p->tf->eip = ((uint)handler); //jump to the address of the called function
   }
 }
 
 void trapframe_backup(void)
 {
   struct proc *p = myproc();
-  // cprintf("Backing up... \n");
+  cprintf("Backing up... \n");
   memmove(&p->user_trap_frame_backup, p->tf, sizeof(struct trapframe));
 }
 
@@ -821,7 +903,7 @@ void trapframe_backup(void)
 void sigret(void)
 {
   struct proc *p = myproc();
-  // cprintf("Recovering... \n");
+  cprintf("Recovering... \n");
   p->handeling_signal = 0;
   memmove(p->tf, &p->user_trap_frame_backup, sizeof(struct trapframe));
 }

@@ -109,8 +109,6 @@ void dummy_loop()
     int uptime_org = uptime();
     int uptime_digit = uptime_org % 100;
 
-    dummy_action();
-
     uint dummy = 0;
     while (i--)
         dummy += i;
@@ -119,7 +117,7 @@ void dummy_loop()
 
     sleep(400);
     printf(1, "testprint for %d! \n", getpid());
-    sleep(1000);
+    sleep(600);
     while (dummy--)
         i++;
     printf(1, "%d was here, slept for %x seconds, lived for %d ticks and died :( \n",
@@ -332,7 +330,7 @@ void test_handler_suspended_overwrite_cont()
         printf(1, "Entering father");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
-        sleep(1);
+        sleep(100);
         printf(1, "setting child to pause and sleeping for 100 ticks \n");
 
         // Sending stop to child.
@@ -347,6 +345,8 @@ void test_handler_suspended_overwrite_cont()
         printf(1, "sending stupid sighandler2 \n");
         // Sending Continue
         kill(childid, SIGCONT);
+
+        sleep(300);
     }
 }
 
@@ -399,7 +399,7 @@ void test_double_regist_same_sig_print()
         printf(1, "Entering father");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
-        sleep(2);
+        sleep(100);
         printf(1, "sending the signal to the process \n");
         // sending the dumb signal now, expecting NO PRINT.
         kill(childid, MY_SIGSIG);
@@ -426,7 +426,7 @@ void test_double_regist_print()
         printf(1, "Entering father");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
-        sleep(2);
+        sleep(100);
         printf(1, "sending the signal to the process \n");
         // sending the dumb signal now, expecting NO PRINT.
         kill(childid, MY_SIGSIG);
@@ -445,7 +445,7 @@ void test_basic_fork_and_sigsig()
         // In child we should halt for a while.
         reg_stupidhandler1();
 
-        // l'oop for a while?
+        // loop for a while?
         dummy_loop();
     }
     else
@@ -453,7 +453,7 @@ void test_basic_fork_and_sigsig()
         printf(1, "Entering father\n");
         // In parent
         printf(1, "sleeping for a second for syncing parent... \n");
-        sleep(1);
+        sleep(100);
         printf(1, "sending the signal to the process \n");
         // sending the dumb signal now, expecting NO PRINT.
         kill(childid, MY_SIGSIG);
@@ -495,17 +495,17 @@ int main()
 
     printf(1, "Basic fork and signal: \n");
     test_basic_fork_and_sigsig();
-    sleep(500);
+    sleep(1000);
 
-    // printf(1, "\n\n\n\n\nBasic two signals: \n");
-    // test_double_regist_print();
-    // sleep(500);
+    printf(1, "\n\n\n\n\nBasic two signals: \n");
+    test_double_regist_print();
+    sleep(1000);
 
-    // printf(1, "\n\n\n\nTesting same sig registration\n");
-    // test_double_regist_same_sig_print();
+    printf(1, "\n\n\n\nTesting same sig registration\n");
+    test_double_regist_same_sig_print();
 
-    // sleep(500);
-    printf(1, "\n\n\n Testin suspend with cont \n");
+    sleep(1000);
+    printf(1, "\n\n\n Testin suspend with overwrite cont \n");
     test_handler_suspended_overwrite_cont();
 
     // sleep(1000);
