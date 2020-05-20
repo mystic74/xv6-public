@@ -185,6 +185,29 @@ int random_math_loop()
     return 1;
 }
 
+void test_sig_dfl_basic()
+{
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+        // loop for a while?
+        dummy_loop();
+    }
+    else
+    {
+
+        printf(1, "Entering father\n");
+        // In parent
+        printf(1, "sleeping for a second for syncing parent... \n");
+        sleep(100);
+
+        // Sending random signal to child, expecting sig kill to happen.
+        kill(childid, 3);
+    }
+}
+
 void test_inherit_mask()
 {
     int childid;
@@ -301,6 +324,56 @@ void test_kill_suspended()
     }
 }
 
+void test_handler_multisuspended()
+{
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+        // In child we should halt for a while.
+        reg_stupidhandler1();
+
+        reg_stupidhandler2();
+        // loop for a while?
+        dummy_loop();
+    }
+    else
+    {
+
+        printf(1, "Entering father\n");
+        // In parent
+        printf(1, "sleeping for a second for syncing parent... \n");
+        sleep(500);
+        printf(1, "setting child to pause and sleeping for 100ticks \n");
+
+        // Sending stop to child.
+        kill(childid, SIGSTOP);
+        kill(childid, SIGSTOP);
+        kill(childid, SIGSTOP);
+        kill(childid, SIGSTOP);
+        kill(childid, SIGSTOP);
+
+        sleep(100);
+        kill(childid, SIGSTOP);
+        kill(childid, SIGSTOP);
+        kill(childid, SIGSTOP);
+        kill(childid, SIGSTOP);
+        kill(childid, SIGSTOP);
+        printf(1, "sending sigsig to child\n");
+
+        // sending the dumb signal now, expecting NO PRINT.
+        kill(childid, MY_SIGSIG);
+        printf(1, "setting child to continue\n");
+        sleep(100);
+        // Sending Continue
+        kill(childid, SIGCONT);
+        sleep(300);
+        printf(1, "Sening another signal\n");
+        kill(childid, MY_OTHER_SIGIG);
+    }
+}
+
 void test_handler_suspended()
 {
     int childid;
@@ -386,6 +459,148 @@ void test_kill_overide_fail()
             printf(1, "sigaction for signal %d succeded \n", SIGKILL);
         }
         exit();
+    }
+}
+
+void test_handler_multisuspended_overwrite_both()
+{
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+        // In child we should halt for a while.
+        reg_handler_with_sig_and_mask((void *)SIGSTOP, MY_SIGSIG, 0x0);
+        reg_handler_with_sig_and_mask((void *)SIGCONT, 14, 0x0);
+        reg_stupidhandler2_with_sig(MY_OTHER_SIGIG);
+        reg_handler_with_sig_and_mask(&stupid_handler1, 13, 0x0);
+        // loop for a while?
+        dummy_loop();
+    }
+    else
+    {
+
+        printf(1, "Entering father\n");
+        // In parent
+        printf(1, "sleeping for a second for syncing parent... \n");
+        sleep(100);
+        printf(1, "setting child to pause with MY_SIGSIG and sleeping for 100 ticks \n");
+
+        // Sending stop to child.
+        kill(childid, MY_SIGSIG);
+        kill(childid, MY_SIGSIG);
+        kill(childid, MY_SIGSIG);
+        kill(childid, MY_SIGSIG);
+        kill(childid, MY_SIGSIG);
+        kill(childid, MY_SIGSIG);
+        sleep(100);
+        kill(childid, MY_SIGSIG);
+        kill(childid, MY_SIGSIG);
+        kill(childid, MY_SIGSIG);
+        kill(childid, MY_SIGSIG);
+        kill(childid, MY_SIGSIG);
+
+        printf(1, "sending sigsig to child (Now stupidhandler2) \n");
+        // sending the dumb signal now
+        kill(childid, MY_OTHER_SIGIG);
+
+        sleep(300);
+        printf(1, "sending signal 14, now should be sigcont \n");
+        // Sending Continue
+        kill(childid, 14);
+
+        sleep(150);
+        printf(1, "sending sig 13 to child (Now stupidhandler1) \n");
+        kill(childid, 13);
+        sleep(150);
+    }
+}
+
+void test_handler_suspended_overwrite_both()
+{
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+        // In child we should halt for a while.
+        reg_handler_with_sig_and_mask((void *)SIGSTOP, MY_SIGSIG, 0x0);
+        reg_handler_with_sig_and_mask((void *)SIGCONT, 14, 0x0);
+        reg_stupidhandler2_with_sig(MY_OTHER_SIGIG);
+        reg_handler_with_sig_and_mask(&stupid_handler1, 13, 0x0);
+        // loop for a while?
+        dummy_loop();
+    }
+    else
+    {
+
+        printf(1, "Entering father\n");
+        // In parent
+        printf(1, "sleeping for a second for syncing parent... \n");
+        sleep(100);
+        printf(1, "setting child to pause with MY_SIGSIG and sleeping for 100 ticks \n");
+
+        // Sending stop to child.
+        kill(childid, MY_SIGSIG);
+        sleep(100);
+
+        printf(1, "sending sigsig to child (Now stupidhandler2) \n");
+        // sending the dumb signal now
+        kill(childid, MY_OTHER_SIGIG);
+
+        sleep(300);
+        printf(1, "sending signal 14, now should be sigcont \n");
+        // Sending Continue
+        kill(childid, 14);
+
+        sleep(150);
+        printf(1, "sending sig 13 to child (Now stupidhandler1) \n");
+        kill(childid, 13);
+        sleep(150);
+    }
+}
+
+void test_handler_suspended_overwrite_stop()
+{
+    int childid;
+    childid = fork();
+
+    if (childid == 0)
+    {
+        // In child we should halt for a while.
+        reg_handler_with_sig_and_mask((void *)SIGSTOP, MY_SIGSIG, 0x0);
+
+        reg_stupidhandler2_with_sig(MY_OTHER_SIGIG);
+        reg_handler_with_sig_and_mask(&stupid_handler1, 13, 0x0);
+        // loop for a while?
+        dummy_loop();
+    }
+    else
+    {
+
+        printf(1, "Entering father\n");
+        // In parent
+        printf(1, "sleeping for a second for syncing parent... \n");
+        sleep(100);
+        printf(1, "setting child to pause and sleeping for 100 ticks \n");
+
+        // Sending stop to child.
+        kill(childid, MY_SIGSIG);
+        sleep(100);
+
+        printf(1, "sending sigsig to child (Now stupidhandler2) \n");
+        // sending the dumb signal now
+        kill(childid, MY_OTHER_SIGIG);
+
+        sleep(300);
+        printf(1, "sending sigcont \n");
+        // Sending Continue
+        kill(childid, SIGCONT);
+
+        sleep(150);
+        printf(1, "sending sig 13 to child (Now stupidhandler1) \n");
+        kill(childid, 13);
+        sleep(150);
     }
 }
 
@@ -590,24 +805,51 @@ int main()
 
     sleep(1000);
 
-    printf(1, "\n\n\n Testin suspend with  cont \n");
+    printf(1, "\n\n\nTesting suspend with  cont \n");
     test_handler_suspended();
 
     sleep(1000);
-    printf(1, "\n\n\n Testin suspend with overwrite cont \n");
+    printf(1, "\n\n\nTesting suspend (with many sigs) with  cont \n");
+    test_handler_multisuspended();
+
+    sleep(1000);
+    printf(1, "\n\n\nTesting suspend with overwrite cont \n");
     test_handler_suspended_overwrite_cont();
 
     sleep(1000);
+    printf(1, "=========================================\n");
+    printf(1, "\n\n\nTesting suspend with overwrite stop \n");
+    test_handler_suspended_overwrite_stop();
+
+    sleep(1000);
+    printf(1, "=========================================\n");
+    printf(1, "\n\n\nTesting suspend with overwrite both \n");
+    test_handler_suspended_overwrite_both();
+
+    sleep(1000);
+    printf(1, "=========================================\n");
+    printf(1, "\n\n\nTesting suspend multiple times with overwrite both \n");
+    test_handler_suspended_overwrite_both();
+
+    sleep(1000);
+    printf(1, "=========================================\n");
     printf(1, "\n\n\n Testing mask for process signal \n");
     test_mask();
 
     sleep(1000);
+    printf(1, "=========================================\n");
     printf(1, "\n\n\n Testing signal handeling for process sons signal \n");
     test_inherit_sig_handler();
 
     sleep(1000);
+    printf(1, "=========================================\n");
     printf(1, "\n\n\n Testing mask for process sons signal \n");
     test_inherit_mask();
+
+    sleep(1000);
+    printf(1, "=========================================\n");
+    printf(1, "\n\n\n Test for SIG_DFL sanity \n \n");
+    test_sig_dfl_basic();
     // sleep(1000);
     /*
         PLEASE NOTICE, THIS TEST DOENS'T END. AT ALL.

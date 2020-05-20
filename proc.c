@@ -298,7 +298,7 @@ void exit(void)
   // cas(&curproc->state, RUNNING, _ZOMBIE);
   //curproc->state = _ZOMBIE;
   // Parent might be sleeping in wait().
-  wakeup1(curproc->parent);
+  cas(&(curproc->state), RUNNING, _ZOMBIE);
 
   // Pass abandoned children to init.
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -313,7 +313,6 @@ void exit(void)
 
   // Jump into the scheduler, never to return.
   // curproc->state = ZOMBIE;
-  cas(&(curproc->state), RUNNING, _ZOMBIE);
 
   sched();
   panic("zombie exit");
@@ -649,7 +648,7 @@ int check_for_handler(struct proc *curproc, void *handler, int handle)
     if ((!checkbit(curproc->pending_signals, i)) || (checkbit(curproc->signal_mask, i)))
       continue;
 
-    if (curproc->signals_handlers[i] == handler)
+    if ((curproc->signals_handlers[i] == handler) || ((handler == (void *)i) && (curproc->signals_handlers[i] == SIG_DFL)))
     {
       ret = 1;
       if (handle)
