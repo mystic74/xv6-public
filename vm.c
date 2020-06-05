@@ -321,6 +321,57 @@ recheck:
   return pageIndex;
 }
 
+int getAQ()
+{
+  pte_t *pte;
+  int i = 0;
+  int pageIndex = -1;
+  uint loadOrder = 0xFFFFFFFF;
+
+  for (i = 0; i < MAX_PSYC_PAGES; i++)
+  {
+    
+    if ((myproc()->ramCtrlr[i].state == USED) && (myproc()->ramCtrlr[i].loadOrder < loadOrder))
+    {
+      pageIndex = i;
+      loadOrder = myproc()->ramCtrlr[i].loadOrder;
+    }
+    
+  }
+  pte = walkpgdir(myproc()->ramCtrlr[pageIndex].pgdir, (char *)myproc()->ramCtrlr[pageIndex].userPageVAddr, 0);
+  
+  if (*pte & PTE_A)
+  {
+    
+    *pte &= ~PTE_A;
+    //very time a page gets accessed, it should switch places with the page 
+    //preceding it the queue (unless it is already in the first place)
+    if (loadOrder > 0) // 1?
+    {
+      uint cur_load =  myproc()->ramCtrlr[pageIndex].loadOrder;
+      int preceding = find_index_from_loadOrder(cur_load-1);
+      if (preceding!=-1){
+        myproc()->ramCtrlr[preceding].loadOrder++;
+      }
+      myproc()->ramCtrlr[pageIndex].loadOrder--;
+
+    }
+  
+  }
+  return pageIndex;
+}
+
+int find_index_from_loadOrder(uint loadOrder)
+{
+  int i;
+  for (i=0;i<MAX_PSYC_PAGES;i++)
+  {
+    if (myproc()->ramCtrlr[i].loadOrder == loadOrder)
+      return i;
+  }
+  return -1;
+}
+
 /**
  * NFU + AGING
  * get the index for the page we should swap when using the NFU method.
@@ -410,6 +461,8 @@ int getPageOutIndex()
   return getLAPA();
 #elif NFU
   return getNFU();
+#elif AQ
+  return getAQ();
 #else
   panic("Unrecognized paging machanism");
 #endif

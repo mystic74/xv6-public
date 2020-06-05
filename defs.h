@@ -204,6 +204,7 @@ void updateAccessCounters();
 void printRamCtrlr();
 void printFileCtrlr();
 int isNONEpolicy();
+int find_index_from_loadOrder(uint loadOrder);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
