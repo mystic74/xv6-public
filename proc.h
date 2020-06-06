@@ -58,6 +58,7 @@ struct pagecontroller
   uint userPageVAddr;
   uint accessCount;
   uint loadOrder;
+  uint queuePos;
 };
 
 // Per-process state

@@ -854,7 +854,17 @@ int writePageToFile(struct proc *p, int userPageVAddr, pde_t *pgdir)
   p->fileCtrlr[freePlace].pgdir = pgdir;
   p->fileCtrlr[freePlace].accessCount = 0;
   p->fileCtrlr[freePlace].loadOrder = 0;
+  p->fileCtrlr[freePlace].queuePos = 0;
   return retInt;
+}
+
+void fix_cur_queue(struct proc *p)
+{
+  int i = 0;
+  for (i = 0; i < MAX_PSYC_PAGES; i++)
+  {
+    p->ramCtrlr[i].queuePos++;
+  }
 }
 
 int readPageFromFile(struct proc *p, int ramCtrlrIndex, int userPageVAddr, char *buff)
@@ -871,6 +881,10 @@ int readPageFromFile(struct proc *p, int ramCtrlrIndex, int userPageVAddr, char 
         break; //error in read
       p->ramCtrlr[ramCtrlrIndex] = p->fileCtrlr[i];
       p->ramCtrlr[ramCtrlrIndex].loadOrder = myproc()->loadOrderCounter++;
+#if AQ
+      p->ramCtrlr[ramCtrlrIndex].queuePos = 0;
+      fix_cur_queue(p);
+#endif
       p->fileCtrlr[i].state = NOTUSED;
       return retInt;
     }

@@ -273,23 +273,6 @@ int pageIsInFile(int userPageVAddr, pde_t *pgdir)
   return (*pte & PTE_PG); //PAGE IS IN FILE
 }
 
-int getLIFO()
-{
-  int i;
-  int pageIndex = -1;
-  uint loadOrder = 0;
-
-  for (i = 0; i < MAX_PSYC_PAGES; i++)
-  {
-    if (myproc()->ramCtrlr[i].state == USED && myproc()->ramCtrlr[i].loadOrder > loadOrder)
-    {
-      loadOrder = myproc()->ramCtrlr[i].loadOrder;
-      pageIndex = i;
-    }
-  }
-  return pageIndex;
-}
-
 int getSCFIFO()
 {
   pte_t *pte;
@@ -330,43 +313,41 @@ int getAQ()
 
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    
-    if ((myproc()->ramCtrlr[i].state == USED) && (myproc()->ramCtrlr[i].loadOrder < loadOrder))
+
+    if ((myproc()->ramCtrlr[i].state == USED) && (myproc()->ramCtrlr[i].queuePos < loadOrder))
     {
       pageIndex = i;
-      loadOrder = myproc()->ramCtrlr[i].loadOrder;
+      loadOrder = myproc()->ramCtrlr[i].queuePos;
     }
-    
   }
   pte = walkpgdir(myproc()->ramCtrlr[pageIndex].pgdir, (char *)myproc()->ramCtrlr[pageIndex].userPageVAddr, 0);
-  
+
   if (*pte & PTE_A)
   {
-    
+
     *pte &= ~PTE_A;
-    //very time a page gets accessed, it should switch places with the page 
+    //very time a page gets accessed, it should switch places with the page
     //preceding it the queue (unless it is already in the first place)
     if (loadOrder > 0) // 1?
     {
-      uint cur_load =  myproc()->ramCtrlr[pageIndex].loadOrder;
-      int preceding = find_index_from_loadOrder(cur_load-1);
-      if (preceding!=-1){
-        myproc()->ramCtrlr[preceding].loadOrder++;
+      uint curpos = myproc()->ramCtrlr[pageIndex].queuePos;
+      int preceding = find_index_from_queuePos(curpos - 1);
+      if (preceding != -1)
+      {
+        myproc()->ramCtrlr[preceding].queuePos++;
       }
-      myproc()->ramCtrlr[pageIndex].loadOrder--;
-
+      myproc()->ramCtrlr[pageIndex].queuePos--;
     }
-  
   }
   return pageIndex;
 }
 
-int find_index_from_loadOrder(uint loadOrder)
+int find_index_from_queuePos(uint pos_to_find)
 {
   int i;
-  for (i=0;i<MAX_PSYC_PAGES;i++)
+  for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if (myproc()->ramCtrlr[i].loadOrder == loadOrder)
+    if (myproc()->ramCtrlr[i].queuePos == pos_to_find)
       return i;
   }
   return -1;
