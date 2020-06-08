@@ -81,13 +81,19 @@ void trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-    if (myproc() != 0 && (tf->cs & 3) == 3 && pageIsInFile(rcr2(), myproc()->pgdir))
+    if (myproc() != 0 && ((tf->cs & 3) == 3) && pageIsInFile(rcr2(), myproc()->pgdir))
     {
       if (getPageFromFile(rcr2()))
       {
         break;
       }
     }
+    pagefault();
+    if (myproc()->killed)
+    {
+      exit();
+    }
+    break;
 
   //PAGEBREAK: 13
   default:

@@ -79,6 +79,10 @@ char *kalloc(void);
 void kfree(char *);
 void kinit1(void *, void *);
 void kinit2(void *, void *);
+void increment_count(uint);
+void decrement_count(uint);
+uint get_num_of_free_pages(void);
+unsigned char get_count(uint);
 int getFreePages();
 int getTotalPages();
 
@@ -194,6 +198,7 @@ void freevm(pde_t *);
 void inituvm(pde_t *, char *, uint);
 int loaduvm(pde_t *, char *, struct inode *, uint, uint);
 pde_t *copyuvm(pde_t *, uint);
+pde_t *cowuvm(pde_t *, uint);
 void switchuvm(struct proc *);
 void switchkvm(void);
 int copyout(pde_t *, uint, void *, uint);
@@ -204,7 +209,8 @@ void updateAccessCounters();
 void printRamCtrlr();
 void printFileCtrlr();
 int isNONEpolicy();
-int find_index_from_loadOrder(uint loadOrder);
+int find_index_from_queuePos(uint loadOrder);
 
+void pagefault(void);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))

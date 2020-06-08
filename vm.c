@@ -638,8 +638,13 @@ int deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       pa = PTE_ADDR(*pte);
       if (pa == 0)
         panic("kfree");
+      uint cow_reference_count = get_count(pa);
       char *v = P2V(pa);
-      kfree(v);
+      //not deallocate pages that other processes have a reference to
+      if (cow_reference_count <= 1)
+        kfree(v);
+      else
+        decrement_count(pa);
       *pte = 0;
     }
   }
@@ -714,6 +719,47 @@ bad:
   return 0;
 }
 
+pte_t *cowuvm(pde_t *pgdir, uint sz)
+{
+  /*
+    Converts each writeable page table entry in the parent and child to read-only and PTE_COW.
+    You will need to also shoot down the TLB entries for any virtual addresses you changed
+    For each page that is shared copy-on-write, you will need to increment the refernce count.
+
+    Note that your cowuvm implementation will not need to allocate new page frames using kalloc() 
+    for the process. Rather, this will be done lazily in the page fault handler. 
+
+  */
+  pde_t *d;
+  pte_t *pte;
+  uint pa, i, flags;
+
+  if ((d = setupkvm()) == 0)
+    return 0;
+  for (i = 0; i < sz; i += PGSIZE)
+  {
+    if ((pte = walkpgdir(pgdir, (void *)i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if (!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    *pte |= PTE_COW; //cow flag on
+    *pte &= ~PTE_W;  //read only
+    pa = PTE_ADDR(*pte);
+    flags = PTE_FLAGS(*pte);
+
+    if (mappages(d, (void *)i, PGSIZE, pa, flags) < 0)
+      goto bad;
+    increment_count(pa);
+  }
+  lcr3(V2P(pgdir)); //flush TLB
+  return d;
+
+bad:
+  freevm(d);
+  lcr3(V2P(pgdir)); //flush TLB
+  return 0;
+}
+
 //PAGEBREAK!
 // Map user virtual address to kernel address.
 char *
@@ -753,6 +799,86 @@ int copyout(pde_t *pgdir, uint va, void *p, uint len)
     va = va0 + PGSIZE;
   }
   return 0;
+}
+
+void pagefault()
+{
+
+  struct proc *p = myproc();
+  uint virt_addr = rcr2(); //the faulting address is available by calling rcr2()
+  pte_t *pte;
+  char *new_mem;
+
+  char *addr = (char *)PGROUNDDOWN((uint)virt_addr);
+  /*
+walkpgdir
+Return the address of the PTE in page table pgdir
+that corresponds to virtual address va.  If alloc!=0,
+create any required page table pages.
+*/
+  if (virt_addr >= KERNBASE || (pte = walkpgdir(p->pgdir, addr, 0)) == 0 ||
+      !(*pte & PTE_U))
+  {
+    cprintf("pid %d %s: pagefault: invalid address %d\n", p->pid, p->name, virt_addr);
+    p->killed = 1;
+    return;
+  }
+
+  if (*pte & PTE_W)
+  {
+    cprintf("pid %d %s: pagefault: already writable.\n", p->pid, p->name);
+    p->killed = 1;
+    return;
+  }
+
+  if (!(*pte & PTE_COW))
+  {
+    cprintf("pid %d %s: pagefault: no cow flag\n", p->pid, p->name);
+    p->killed = 1;
+    return;
+  }
+
+  uint page_addr = PTE_ADDR(*pte);
+  uint cow_reference_count = get_count(page_addr);
+  uint flags = PTE_FLAGS(*pte);
+
+  if (cow_reference_count > 1)
+  {
+    //allocate memory to new page
+    //kalloc allocate one 4096-byte page of physical memory.
+    // Returns a pointer that the kernel can use.
+    // Returns 0 if the memory cannot be allocated.
+    if ((new_mem = kalloc()) == 0)
+    {
+      cprintf("pid %d %s: pagefault: can't allocate memory\n", p->pid, p->name);
+      p->killed = 1;
+      return;
+    }
+
+    //cprintf("kalloc\n");
+    //copy page to new memory
+    memmove(new_mem, P2V(page_addr), PGSIZE);
+
+    //change the page table entry to the new page
+    *pte = V2P(new_mem) | flags | PTE_P | PTE_U | PTE_W;
+    // When changing a valid page table entry to another
+    // valid page table entry, you may need to clear the TLB (as in the lcr3())
+
+    decrement_count(page_addr);
+  }
+  else if (cow_reference_count == 1)
+  {
+
+    //remove read only
+    *pte |= PTE_W;
+    //remove cow flag
+    *pte &= ~PTE_COW;
+  }
+  else
+  {
+    panic("pagefault: reference count");
+  }
+  lcr3(V2P(p->pgdir));
 }
 
 //PAGEBREAK!

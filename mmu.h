@@ -103,19 +103,28 @@ struct segdesc
 #define PTE_U 0x004 // User
 
 // Undoing commit 210a0f for this, guess the base code is too new?...
-#define PTE_PWT 0x008 // Write -Through
+
+// TomR : With rachel merge, she unknowngly ran this over.
+// hoping for the best?
+//#define PTE_PWT 0x008 // Write -Through
 #define PTE_PCD 0x010 // Cache-disable
 #define PTE_A 0x020   // Accessed
 #define PTE_D 0x040   // Dirty
 #define PTE_PS 0x080  // Page Size
 #define PTE_MBZ 0x180 // Bits must be zero
 
+// Rachel commit, double check this.
+#define PTE_COW 0X008 //  copy on write
 // Address in page table or page directory entry
+
 #define PTE_ADDR(pte) ((uint)(pte) & ~0xFFF)
 #define PTE_FLAGS(pte) ((uint)(pte)&0xFFF)
 
 #ifndef __ASSEMBLER__
 typedef uint pte_t;
+
+#define MAX_PSYC_PAGES 16
+#define MAX_TOTAL_PAGES 32
 
 // Task state segment format
 struct taskstate
