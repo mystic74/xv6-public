@@ -895,13 +895,15 @@ int readPageFromFile(struct proc *p, int ramCtrlrIndex, int userPageVAddr, char 
 
 void copySwapFile(struct proc *fromP, struct proc *toP)
 {
+
   if (fromP->pid < 3)
     return;
-  char buff[PGSIZE];
+  char *buff = kalloc();
   int i;
+
   for (i = 0; i < MAX_TOTAL_PAGES - MAX_PSYC_PAGES; i++)
   {
-    if (myproc()->fileCtrlr[i].state == USED)
+    if (fromP->fileCtrlr[i].state == USED)
     {
       if (readFromSwapFile(fromP, buff, PGSIZE * i, PGSIZE) != PGSIZE)
         panic("CopySwapFile error on read");
@@ -909,4 +911,5 @@ void copySwapFile(struct proc *fromP, struct proc *toP)
         panic("CopySwapFile error on write");
     }
   }
+  kfree(buff);
 }
