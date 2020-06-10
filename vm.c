@@ -279,6 +279,10 @@ int getSCFIFO()
   int i = 0;
   int pageIndex;
   uint loadOrder;
+#ifdef VERBOSE_PRINT
+  cprintf("getting page using SCFIFO \n");
+#endif
+
 recheck:
   pageIndex = -1;
   loadOrder = 0xFFFFFFFF;
@@ -310,7 +314,9 @@ int getAQ()
   int i = 0;
   int pageIndex = -1;
   uint loadOrder = 0xFFFFFFFF;
-
+#ifdef VERBOSE_PRINT
+  cprintf("getting page using AQ \n");
+#endif
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
 
@@ -366,7 +372,9 @@ int getNFU()
   int i;
   int pageIndex = -1;
   uint minAccess = 0xffffffff; // All bits lit.
-
+#ifdef VERBOSE_PRINT
+  cprintf("getting page using NFU \n");
+#endif
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
     if ((myproc()->ramCtrlr[i].state == USED) &&
@@ -417,7 +425,9 @@ int getLAPA()
   int pageIndex = -1;
   //  uint minAccess = 0xffffffff;
   uint shifted = 33; // 32 bits + 1.
-
+#ifdef VERBOSE_PRINT
+  cprintf("getting page using LAPA \n");
+#endif
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
     if ((myproc()->ramCtrlr[i].state == USED) && (bit_count_simple(myproc()->ramCtrlr[i].accessCount) <= shifted))
@@ -444,6 +454,8 @@ int getPageOutIndex()
   return getNFU();
 #elif AQ
   return getAQ();
+#elif NONE
+  return 1;
 #else
   panic("Unrecognized paging machanism");
 #endif
@@ -742,9 +754,11 @@ pte_t *cowuvm(pde_t *pgdir, uint sz)
       panic("copyuvm: pte should exist");
     if (!(*pte & PTE_P))
       panic("copyuvm: page not present");
+
     *pte |= PTE_COW; //cow flag on
     *pte &= ~PTE_W;  //read only
     pa = PTE_ADDR(*pte);
+
     flags = PTE_FLAGS(*pte);
 
     if (mappages(d, (void *)i, PGSIZE, pa, flags) < 0)

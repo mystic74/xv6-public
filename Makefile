@@ -177,6 +177,7 @@ UPROGS=\
 	_mkdir\
 	_rm\
 	_sh\
+	_myMemTest\
 	_stressfs\
 	_usertests\
 	_wc\
@@ -223,13 +224,15 @@ endif
 QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 
 ifndef SELECTION
-	SELECTION = SCFIFO
+	SELECTION := SCFIFO
 endif
 
-ifndef VERBOSE_PRINT
-	VERBOSE_PRINT = 0
+ifdef VERBOSE_PRINT
+	CFLAGS += -DVERBOSE_PRINT
+$(info "selection value is $(SELECTION)")
 endif
 
+CFLAGS += -D$(SELECTION)
 qemu: fs.img xv6.img
 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
 
@@ -257,7 +260,7 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 # check in that version.
 
 EXTRA=\
-	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
+	mkfs.c ulib.c user.h cat.c echo.c forktest.c myMemTest.c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\ cow_test.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
