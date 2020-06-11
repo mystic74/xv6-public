@@ -141,7 +141,11 @@ found:
 
     for (i = 0; i < MAX_PSYC_PAGES; i++)
     {
+#ifdef LAPA
+      p->ramCtrlr[i].accessCount = 0xffffffff;
+#else
       p->ramCtrlr[i].accessCount = 0;
+#endif
       p->ramCtrlr[i].loadOrder = 0;
       p->ramCtrlr[i].pgdir = 0;
       p->ramCtrlr[i].queuePos = 0;
@@ -228,8 +232,8 @@ int fork(void)
   }
 
   // Copy process state from proc.
-  if ((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0)
-  // if ((np->pgdir = cowuvm(curproc->pgdir, curproc->sz)) == 0)
+  // if ((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0)
+  if ((np->pgdir = cowuvm(curproc->pgdir, curproc->sz)) == 0)
   {
     kfree(np->kstack);
     np->kstack = 0;

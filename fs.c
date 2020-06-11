@@ -817,7 +817,6 @@ int createSwapFile(struct proc *p)
 //return as sys_write (-1 when error)
 int writeToSwapFile(struct proc *p, char *buffer, uint placeOnFile, uint size)
 {
-  cprintf("writing to swap file for %d on offset %d \n", p->pid, placeOnFile);
   p->swapFile->off = placeOnFile;
 
   return filewrite(p->swapFile, buffer, size);
@@ -826,7 +825,6 @@ int writeToSwapFile(struct proc *p, char *buffer, uint placeOnFile, uint size)
 //return as sys_read (-1 when error)
 int readFromSwapFile(struct proc *p, char *buffer, uint placeOnFile, uint size)
 {
-  cprintf("reading from swap file for %d on offset %d \n", p->pid, placeOnFile);
 
   p->swapFile->off = placeOnFile;
 
@@ -909,7 +907,6 @@ void copySwapFile(struct proc *fromP, struct proc *toP)
 
     if (fromP->fileCtrlr[i].state == USED)
     {
-      cprintf(" reading from the %d page \n", i);
       if (readFromSwapFile(fromP, buff, PGSIZE * i, PGSIZE) != PGSIZE)
         panic("CopySwapFile error on read");
       if (writeToSwapFile(toP, buff, PGSIZE * i, PGSIZE) != PGSIZE)

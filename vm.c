@@ -223,14 +223,10 @@ int loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 int getPagePAddr(int userPageVAddr, pde_t *pgdir)
 {
   pte_t *pte;
-  cprintf("getPagePAddr:return for v addr %x\n", userPageVAddr);
 
   pte = walkpgdir(pgdir, (int *)userPageVAddr, 0);
   if (!pte) //uninitialized page table
   {
-    cprintf("getPagePAddr zero val pte\npgdir:%x, a:%x, walpgdir:%x, pde :%x with val :%x\n", pgdir,
-            userPageVAddr, walkpgdir(pgdir, (int *)userPageVAddr, 0), &pgdir[PDX(userPageVAddr)],
-            *(&pgdir[PDX(userPageVAddr)]));
     return -1;
   }
   return PTE_ADDR(*pte);
@@ -539,7 +535,6 @@ int getPageFromFile(int cr2)
 void addToRamCtrlr(pde_t *pgdir, uint v_addr)
 {
   int freeLocation = getFreeRamCtrlrIndex();
-  cprintf("setting  %d  with %x, %x\n", freeLocation, pgdir, v_addr);
   if (freeLocation == -1)
     panic("no free location, should be one.");
   myproc()->ramCtrlr[freeLocation].state = USED;
@@ -547,20 +542,21 @@ void addToRamCtrlr(pde_t *pgdir, uint v_addr)
   myproc()->ramCtrlr[freeLocation].userPageVAddr = v_addr;
   myproc()->ramCtrlr[freeLocation].loadOrder = myproc()->loadOrderCounter++;
   myproc()->ramCtrlr[freeLocation].accessCount = 0;
-
-  cprintf("%x\n", getPagePAddr(myproc()->ramCtrlr[freeLocation].userPageVAddr, myproc()->ramCtrlr[freeLocation].pgdir));
+#ifdef LAPA
+  myproc()->ramCtrlr[freeLocation].accessCount = 0xffffffff;
+#else
+  myproc()->ramCtrlr[freeLocation].accessCount = 0;
+#endif
 }
 
 void swap(pde_t *pgdir, uint userPageVAddr)
 {
   myproc()->countOfPagedOut++;
   int outIndex = getPageOutIndex();
-  cprintf("vAddr:%x \n", myproc()->ramCtrlr[outIndex].userPageVAddr);
 
   int outPagePAddr = getPagePAddr(myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
   writePageToFile(myproc(), myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
   char *v = P2V(outPagePAddr);
-  cprintf("outpagePAddr :%d , v:%x \n", outPagePAddr, v);
   kfree(v); //free swapped page
   myproc()->ramCtrlr[outIndex].state = NOTUSED;
   fixPagedOutPTE(myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
@@ -585,8 +581,6 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     return 0;
   if (newsz < oldsz)
     return oldsz;
-
-  static int r = 0;
 
   if (!isNONEpolicy())
   {
@@ -618,17 +612,11 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 #endif
       if (getFreeRamCtrlrIndex() == -1)
       {
-        cprintf("swap now %d\n", r++);
-
         swap(pgdir, a);
       }
       else //there's room
       {
-        cprintf("%d\n", r++);
         addToRamCtrlr(pgdir, a);
-        cprintf("pgdir:%x, a:%x, walpgdir:%x, pde :%x with val :%x\n", pgdir,
-                a, walkpgdir(pgdir, (int *)a, 0), &pgdir[PDX(a)],
-                *(&pgdir[PDX(a)]));
       }
     }
   }
