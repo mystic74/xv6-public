@@ -88,7 +88,9 @@ void trap(struct trapframe *tf)
         break;
       }
     }
+
     pagefault();
+
     if (myproc()->killed)
     {
       exit();

@@ -45,7 +45,10 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
   else
   {
     if (!alloc || (pgtab = (pte_t *)kalloc()) == 0)
+    {
+      // cprintf("returning 0, got pte %x with val:%x \n", pde, *pde);
       return 0;
+    }
     // Make sure all those PTE_P bits are zero.
     memset(pgtab, 0, PGSIZE);
     // The permissions here are overly generous, but they can
@@ -220,9 +223,16 @@ int loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 int getPagePAddr(int userPageVAddr, pde_t *pgdir)
 {
   pte_t *pte;
+  cprintf("getPagePAddr:return for v addr %x\n", userPageVAddr);
+
   pte = walkpgdir(pgdir, (int *)userPageVAddr, 0);
   if (!pte) //uninitialized page table
+  {
+    cprintf("getPagePAddr zero val pte\npgdir:%x, a:%x, walpgdir:%x, pde :%x with val :%x\n", pgdir,
+            userPageVAddr, walkpgdir(pgdir, (int *)userPageVAddr, 0), &pgdir[PDX(userPageVAddr)],
+            *(&pgdir[PDX(userPageVAddr)]));
     return -1;
+  }
   return PTE_ADDR(*pte);
 }
 
@@ -305,6 +315,8 @@ recheck:
     myproc()->ramCtrlr[pageIndex].loadOrder = myproc()->loadOrderCounter++;
     goto recheck;
   }
+
+  cprintf("returning %d \n", pageIndex);
   return pageIndex;
 }
 
@@ -387,15 +399,6 @@ int getNFU()
   return pageIndex;
 }
 
-// int bit_count_mit(uint32_t i)
-// {
-//   // Java: use int, and use >>> instead of >>
-//   // C or C++: use uint32_t
-//   i = i - ((i >> 1) & 0x55555555);
-//   i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
-//   return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
-// }
-
 unsigned int bit_count_simple(unsigned int value)
 {
   unsigned int count = 0;
@@ -407,10 +410,7 @@ unsigned int bit_count_simple(unsigned int value)
   }
   return count;
 }
-// int getNumOfBits(uint val)
-// {
 
-// }
 /**
  * Least accessed page + AGING
  * get the index for the page we should swap when using the NFU method.
@@ -437,16 +437,21 @@ int getLAPA()
       pageIndex = i;
     }
   }
+#ifdef VERBOSE_PRINT
+  cprintf("returning page %d \n", pageIndex);
+#endif
+
   return pageIndex;
 }
 
 int getPageOutIndex()
 {
-#if VERBOSE_PRINT
+#ifdef VERBOSE_PRINT
+
   cprintf("Got get page\n");
 #endif
 
-#if SCFIFO
+#ifdef SCFIFO
   return getSCFIFO();
 #elif LAPA
   return getLAPA();
@@ -533,20 +538,28 @@ int getPageFromFile(int cr2)
 void addToRamCtrlr(pde_t *pgdir, uint v_addr)
 {
   int freeLocation = getFreeRamCtrlrIndex();
+  cprintf("setting  %d  with %x, %x\n", freeLocation, pgdir, v_addr);
+  if (freeLocation == -1)
+    panic("no free location, should be one.");
   myproc()->ramCtrlr[freeLocation].state = USED;
   myproc()->ramCtrlr[freeLocation].pgdir = pgdir;
   myproc()->ramCtrlr[freeLocation].userPageVAddr = v_addr;
   myproc()->ramCtrlr[freeLocation].loadOrder = myproc()->loadOrderCounter++;
   myproc()->ramCtrlr[freeLocation].accessCount = 0;
+
+  cprintf("%x\n", getPagePAddr(myproc()->ramCtrlr[freeLocation].userPageVAddr, myproc()->ramCtrlr[freeLocation].pgdir));
 }
 
 void swap(pde_t *pgdir, uint userPageVAddr)
 {
   myproc()->countOfPagedOut++;
   int outIndex = getPageOutIndex();
+  cprintf("vAddr:%x \n", myproc()->ramCtrlr[outIndex].userPageVAddr);
+
   int outPagePAddr = getPagePAddr(myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
   writePageToFile(myproc(), myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
   char *v = P2V(outPagePAddr);
+  cprintf("outpagePAddr :%d , v:%x \n", outPagePAddr, v);
   kfree(v); //free swapped page
   myproc()->ramCtrlr[outIndex].state = NOTUSED;
   fixPagedOutPTE(myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
@@ -555,7 +568,7 @@ void swap(pde_t *pgdir, uint userPageVAddr)
 
 int isNONEpolicy()
 {
-#if NONE
+#ifdef NONE
   return 1;
 #endif
   return 0;
@@ -567,37 +580,20 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
   char *mem;
   uint a;
-
   if (newsz >= KERNBASE)
     return 0;
   if (newsz < oldsz)
     return oldsz;
 
-#if NONE
-  a = PGROUNDUP(oldsz);
-  for (; a < newsz; a += PGSIZE)
+  static int r = 0;
+
+  if (!isNONEpolicy())
   {
-    mem = kalloc();
-    if (mem == 0)
+    if (PGROUNDUP(newsz) / PGSIZE > MAX_TOTAL_PAGES && myproc()->pid > 2)
     {
-      cprintf("allocuvm out of memory\n");
-      deallocuvm(pgdir, newsz, oldsz);
+      cprintf("proc is too big\n", PGROUNDUP(newsz) / PGSIZE);
       return 0;
     }
-    memset(mem, 0, PGSIZE);
-    if (mappages(pgdir, (char *)a, PGSIZE, V2P(mem), PTE_W | PTE_U) < 0)
-    {
-      cprintf("allocuvm out of memory (2)\n");
-      deallocuvm(pgdir, newsz, oldsz);
-      kfree(mem);
-      return 0;
-    }
-  }
-#else
-  if ((PGROUNDUP(newsz) / PGSIZE > MAX_TOTAL_PAGES) && (myproc()->pid > 2))
-  {
-    cprintf("proc is too big\n", PGROUNDUP(newsz) / PGSIZE);
-    return 0;
   }
 
   a = PGROUNDUP(oldsz);
@@ -614,15 +610,30 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     }
     memset(mem, 0, PGSIZE);
     mappages(pgdir, (char *)a, PGSIZE, V2P(mem), PTE_W | PTE_U);
-    if (myproc()->pid > 2)
+    if (!isNONEpolicy() && myproc()->pid > 2)
     {
-      if (PGROUNDUP(oldsz) / PGSIZE + i > MAX_PSYC_PAGES)
+#ifdef VERBOSE_PRINT
+      cprintf("PGROUNGUP %d oldsz :%d newsz:%d , i %d \n", PGROUNDUP(oldsz), oldsz, newsz, i);
+#endif
+      if (getFreeRamCtrlrIndex() == -1)
+      {
+        cprintf("swap now %d\n", r++);
+
         swap(pgdir, a);
+      }
       else //there's room
+      {
+        cprintf("%d\n", r++);
         addToRamCtrlr(pgdir, a);
+        cprintf("pgdir:%x, a:%x, walpgdir:%x, pde :%x with val :%x\n", pgdir,
+                a, walkpgdir(pgdir, (int *)a, 0), &pgdir[PDX(a)],
+                *(&pgdir[PDX(a)]));
+      }
     }
   }
+#ifdef VERBOSE_PRINT
 
+  cprintf("Returning newsz : %d\n", newsz);
 #endif
   return newsz;
 }
@@ -711,7 +722,7 @@ copyuvm(pde_t *pgdir, uint sz)
   {
     if ((pte = walkpgdir(pgdir, (void *)i, 0)) == 0)
       panic("copyuvm: pte should exist");
-    if (!(*pte & PTE_P))
+    if (!(*pte & PTE_P) && !(*pte & PTE_PG))
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
@@ -752,7 +763,7 @@ pte_t *cowuvm(pde_t *pgdir, uint sz)
   {
     if ((pte = walkpgdir(pgdir, (void *)i, 0)) == 0)
       panic("copyuvm: pte should exist");
-    if (!(*pte & PTE_P))
+    if (!(*pte & PTE_P) && !(*pte & PTE_PG))
       panic("copyuvm: page not present");
 
     *pte |= PTE_COW; //cow flag on
@@ -824,6 +835,7 @@ void pagefault()
   char *new_mem;
 
   char *addr = (char *)PGROUNDDOWN((uint)virt_addr);
+  cprintf("pagefault\n");
   /*
 walkpgdir
 Return the address of the PTE in page table pgdir

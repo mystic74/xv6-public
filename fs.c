@@ -817,6 +817,7 @@ int createSwapFile(struct proc *p)
 //return as sys_write (-1 when error)
 int writeToSwapFile(struct proc *p, char *buffer, uint placeOnFile, uint size)
 {
+  cprintf("writing to swap file for %d on offset %d \n", p->pid, placeOnFile);
   p->swapFile->off = placeOnFile;
 
   return filewrite(p->swapFile, buffer, size);
@@ -825,6 +826,8 @@ int writeToSwapFile(struct proc *p, char *buffer, uint placeOnFile, uint size)
 //return as sys_read (-1 when error)
 int readFromSwapFile(struct proc *p, char *buffer, uint placeOnFile, uint size)
 {
+  cprintf("reading from swap file for %d on offset %d \n", p->pid, placeOnFile);
+
   p->swapFile->off = placeOnFile;
 
   return fileread(p->swapFile, buffer, size);
@@ -881,7 +884,7 @@ int readPageFromFile(struct proc *p, int ramCtrlrIndex, int userPageVAddr, char 
         break; //error in read
       p->ramCtrlr[ramCtrlrIndex] = p->fileCtrlr[i];
       p->ramCtrlr[ramCtrlrIndex].loadOrder = myproc()->loadOrderCounter++;
-#if AQ
+#ifdef AQ
       p->ramCtrlr[ramCtrlrIndex].queuePos = 0;
       fix_cur_queue(p);
 #endif
@@ -903,8 +906,10 @@ void copySwapFile(struct proc *fromP, struct proc *toP)
 
   for (i = 0; i < MAX_TOTAL_PAGES - MAX_PSYC_PAGES; i++)
   {
+
     if (fromP->fileCtrlr[i].state == USED)
     {
+      cprintf(" reading from the %d page \n", i);
       if (readFromSwapFile(fromP, buff, PGSIZE * i, PGSIZE) != PGSIZE)
         panic("CopySwapFile error on read");
       if (writeToSwapFile(toP, buff, PGSIZE * i, PGSIZE) != PGSIZE)

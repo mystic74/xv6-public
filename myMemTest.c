@@ -4,7 +4,7 @@
 #include "fs.h"
 
 #define PGSIZE 4096
-#define ARR_SIZE 65000
+#define ARR_SIZE 82000
 
 /*
 	Test used to check the swapping machanism in fork.
@@ -14,7 +14,7 @@ void forkTest()
 {
     int i;
     char *arr;
-    arr = malloc(60000); //allocates 13 pages (sums to 16), in lifo, OS puts page #15 in file.
+    arr = malloc(82000); //allocates 15 pages (sums to 16), in lifo, OS puts page #15 in file.
 
     for (i = 0; i < 50; i++)
     {
@@ -26,6 +26,7 @@ void forkTest()
 
     if (fork() == 0)
     { //is son
+        sleep(1500);
         for (i = 40; i < 50; i++)
         {
             arr[49100 + i] = 'C'; //changes last ten A's to C
@@ -36,6 +37,7 @@ void forkTest()
         printf(1, "Excpecting BBB... DDD...\n");
         printf(1, "SON: %s\n", &arr[45200]); // should print BBBBB..DDD...
         printf(1, "\n");
+        sleep(1500);
         free(arr);
         exit();
     }
@@ -49,6 +51,8 @@ void forkTest()
         printf(1, "Excpecting BBB...\n");
 
         printf(1, "PARENT: %s\n", &arr[45200]); // should print BBBBB...
+
+        sleep(1500);
         free(arr);
     }
 }
@@ -89,6 +93,9 @@ void globalTest()
                                     //(redraw number if randNum is in the first half of page #13)
         arr[randNum] = 'X';         //write to memory
     }
+    printf(1, "Ctrl+P now \n");
+
+    sleep(2000);
     free(arr);
 }
 
@@ -96,7 +103,7 @@ int main(int argc, char *argv[])
 {
     printf(1, "Running global test\n");
     globalTest(); //for testing each policy efficiency
-    printf(1, "Running mini fork test\n");
-    forkTest(); //for testing swapping machanism in fork.
+    // printf(1, "Running mini fork test\n");
+    // forkTest(); //for testing swapping machanism in fork.
     exit();
 }

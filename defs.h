@@ -205,7 +205,7 @@ int copyout(pde_t *, uint, void *, uint);
 void clearpteu(pde_t *pgdir, char *uva);
 int pageIsInFile(int vaddr, pde_t *pgdir);
 int getPageFromFile(int vAddr);
-void updateAccessCounters();
+void update_all_counters();
 void printRamCtrlr();
 void printFileCtrlr();
 int isNONEpolicy();

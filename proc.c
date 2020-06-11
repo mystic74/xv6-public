@@ -115,9 +115,6 @@ found:
   p->faultCounter = 0;
   p->countOfPagedOut = 0;
 
-  if (p->pid > 2)
-    createSwapFile(p);
-
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
@@ -128,6 +125,30 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  if (p->pid > 2)
+  {
+    createSwapFile(p);
+    int i;
+    for (i = 0; i < MAX_TOTAL_PAGES - MAX_PSYC_PAGES; i++)
+    {
+      p->fileCtrlr[i].accessCount = 0;
+      p->fileCtrlr[i].loadOrder = 0;
+      p->fileCtrlr[i].pgdir = 0;
+      p->fileCtrlr[i].queuePos = 0;
+      p->fileCtrlr[i].state = NOTUSED;
+      p->fileCtrlr[i].userPageVAddr = 0;
+    }
+
+    for (i = 0; i < MAX_PSYC_PAGES; i++)
+    {
+      p->ramCtrlr[i].accessCount = 0;
+      p->ramCtrlr[i].loadOrder = 0;
+      p->ramCtrlr[i].pgdir = 0;
+      p->ramCtrlr[i].queuePos = 0;
+      p->ramCtrlr[i].state = NOTUSED;
+      p->ramCtrlr[i].userPageVAddr = 0;
+    }
+  }
   return p;
 }
 
@@ -207,8 +228,8 @@ int fork(void)
   }
 
   // Copy process state from proc.
-  //if ((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0)
-  if ((np->pgdir = cowuvm(curproc->pgdir, curproc->sz)) == 0)
+  if ((np->pgdir = copyuvm(curproc->pgdir, curproc->sz)) == 0)
+  // if ((np->pgdir = cowuvm(curproc->pgdir, curproc->sz)) == 0)
   {
     kfree(np->kstack);
     np->kstack = 0;
@@ -216,10 +237,9 @@ int fork(void)
     return -1;
   }
   np->sz = curproc->sz;
+
   if (curproc->pid > 2)
   {
-    copySwapFile(curproc, np);
-    np->loadOrderCounter = curproc->loadOrderCounter;
 
     // Copy all the ram pages, will need COW changes..
     for (i = 0; i < MAX_PSYC_PAGES; i++)
@@ -233,7 +253,11 @@ int fork(void)
       np->fileCtrlr[i] = curproc->fileCtrlr[i];
       np->fileCtrlr[i].pgdir = np->pgdir;
     }
+
+    copySwapFile(curproc, np);
+    np->loadOrderCounter = curproc->loadOrderCounter;
   }
+
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
@@ -250,7 +274,6 @@ int fork(void)
   pid = np->pid;
   np->faultCounter = 0;
   np->countOfPagedOut = 0;
-
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
@@ -565,9 +588,7 @@ void update_all_counters()
 {
   struct proc *p;
   acquire(&ptable.lock);
-#if VERBOSE_PRINT
-  cprintf("updating counters");
-#endif
+
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if ((p->pid > 2) && (p->state > 1) && (p->state < 5)) //proc is either running, runnable or sleeping
