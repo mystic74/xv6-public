@@ -396,6 +396,7 @@ int getNFU()
       pageIndex = i;
     }
   }
+  cprintf("Getting index %d\n", pageIndex);
   return pageIndex;
 }
 
@@ -638,6 +639,37 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   return newsz;
 }
 
+//This must use userVaddress+pgdir addresses!
+//(The proc has identical vAddresses on different page directories until exec finish executing)
+void removeFromRamCtrlr(uint userPageVAddr, pde_t *pgdir)
+{
+  if (myproc() == 0)
+    return;
+  int i;
+  for (i = 0; i < MAX_PSYC_PAGES; i++)
+  {
+    if (myproc()->ramCtrlr[i].state == USED && myproc()->ramCtrlr[i].userPageVAddr == userPageVAddr && myproc()->ramCtrlr[i].pgdir == pgdir)
+    {
+      myproc()->ramCtrlr[i].state = NOTUSED;
+      return;
+    }
+  }
+}
+
+void removeFromFileCtrlr(uint userPageVAddr, pde_t *pgdir)
+{
+  if (myproc() == 0)
+    return;
+  int i;
+  for (i = 0; i < MAX_TOTAL_PAGES - MAX_PSYC_PAGES; i++)
+  {
+    if (myproc()->fileCtrlr[i].state == USED && myproc()->fileCtrlr[i].userPageVAddr == userPageVAddr && myproc()->fileCtrlr[i].pgdir == pgdir)
+    {
+      myproc()->fileCtrlr[i].state = NOTUSED;
+      return;
+    }
+  }
+}
 // Deallocate user pages to bring the process size from oldsz to
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
@@ -665,9 +697,15 @@ int deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       char *v = P2V(pa);
       //not deallocate pages that other processes have a reference to
       if (cow_reference_count <= 1)
+      {
         kfree(v);
+        if (!isNONEpolicy())
+          removeFromRamCtrlr(a, pgdir);
+      }
       else
+      {
         decrement_count(pa);
+      }
       *pte = 0;
     }
   }
@@ -774,6 +812,7 @@ pte_t *cowuvm(pde_t *pgdir, uint sz)
 
     if (mappages(d, (void *)i, PGSIZE, pa, flags) < 0)
       goto bad;
+
     increment_count(pa);
   }
   lcr3(V2P(pgdir)); //flush TLB
@@ -835,7 +874,6 @@ void pagefault()
   char *new_mem;
 
   char *addr = (char *)PGROUNDDOWN((uint)virt_addr);
-  cprintf("pagefault\n");
   /*
 walkpgdir
 Return the address of the PTE in page table pgdir
