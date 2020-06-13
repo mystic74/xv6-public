@@ -85,6 +85,29 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
   return 0;
 }
 
+static int
+mappages_swapped(pde_t *pgdir, void *va, uint size, uint pa, int perm)
+{
+  char *a, *last;
+  pte_t *pte;
+
+  a = (char *)PGROUNDDOWN((uint)va);
+  last = (char *)PGROUNDDOWN(((uint)va) + size - 1);
+  for (;;)
+  {
+    if ((pte = walkpgdir(pgdir, a, 1)) == 0)
+      return -1;
+    if (*pte & PTE_PG)
+      panic("remap");
+    *pte = pa | perm | PTE_PG;
+    if (a == last)
+      break;
+    a += PGSIZE;
+    pa += PGSIZE;
+  }
+  return 0;
+}
+
 // There is one page table per process, plus one that's used when
 // a CPU is not running any process (kpgdir). The kernel uses the
 // current process's page table during system calls and interrupts;
@@ -351,7 +374,7 @@ int getAQ()
     *pte &= ~PTE_A;
     //very time a page gets accessed, it should switch places with the page
     //preceding it the queue (unless it is already in the first place)
-    if (foundqueuePos < myproc()->queuePos) // 1?
+    if (foundqueuePos < myproc()-> queuePos) // 1?
     {
       
       int preceding = find_index_from_queuePos(foundqueuePos + 1);
@@ -820,13 +843,19 @@ pte_t *cowuvm(pde_t *pgdir, uint sz)
 
     *pte |= PTE_COW; //cow flag on
     *pte &= ~PTE_W;  //read only
+
     pa = PTE_ADDR(*pte);
-
     flags = PTE_FLAGS(*pte);
-
-    if (mappages(d, (void *)i, PGSIZE, pa, flags) < 0)
-      goto bad;
-
+    if (*pte & PTE_P){
+      if (mappages(d, (void *)i, PGSIZE, pa, flags) < 0)
+        goto bad;
+    }
+    else
+    {
+       if (mappages_swapped(d, (void *)i, PGSIZE, pa, flags) < 0)
+        goto bad;
+    }
+    
     increment_count(pa);
   }
   lcr3(V2P(pgdir)); //flush TLB
@@ -938,7 +967,7 @@ create any required page table pages.
     memmove(new_mem, P2V(page_addr), PGSIZE);
 
     //change the page table entry to the new page
-    *pte = V2P(new_mem) | flags | PTE_P | PTE_U | PTE_W;
+    *pte = V2P(new_mem)|flags|PTE_P|PTE_U | PTE_W;
     // When changing a valid page table entry to another
     // valid page table entry, you may need to clear the TLB (as in the lcr3())
 
