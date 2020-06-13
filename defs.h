@@ -210,6 +210,7 @@ void printRamCtrlr();
 void printFileCtrlr();
 int isNONEpolicy();
 int find_index_from_queuePos(uint loadOrder);
+uint min_queue_pos(void);
 
 void pagefault(void);
 // number of elements in fixed-size array

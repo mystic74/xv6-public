@@ -333,6 +333,7 @@ recheck:
 
   if (*pte & PTE_A)
   {
+    cprintf("accessed\n\n\n");
     // If it is accessed, set it off, set the current load order and retest the SCFIFO.
     *pte &= ~PTE_A;
     myproc()->ramCtrlr[pageIndex].loadOrder = myproc()->loadOrderCounter++;
@@ -351,11 +352,15 @@ int getAQ()
 {
   pte_t *pte;
   int i = 0;
-  int pageIndex = -1;
-  uint foundqueuePos = 0;
+  int pageIndex;
+  uint foundqueuePos;
+
 #ifdef VERBOSE_PRINT
   cprintf("getting page using AQ \n");
 #endif
+recheck:
+  pageIndex = -1;
+  foundqueuePos = 0;
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
 
@@ -371,33 +376,55 @@ int getAQ()
 
   if (*pte & PTE_A)
   {
+    
     *pte &= ~PTE_A;
     //very time a page gets accessed, it should switch places with the page
     //preceding it the queue (unless it is already in the first place)
-    if (foundqueuePos < myproc()-> queuePos) // 1?
+    if (foundqueuePos > min_queue_pos()) 
     {
       
-      int preceding = find_index_from_queuePos(foundqueuePos + 1);
-      if (preceding != -1)
-      {
-        myproc()->ramCtrlr[preceding].queuePos--;
-      }
-      myproc()->ramCtrlr[pageIndex].queuePos++;
+      int preceding = find_index_from_queuePos(foundqueuePos-1);
+      uint precedingQueuePos = myproc()->ramCtrlr[preceding].queuePos;
+      cprintf("-----changing queuePos for index %d from %d to %d------\n",pageIndex,foundqueuePos,precedingQueuePos);
+      myproc()->ramCtrlr[preceding].queuePos = foundqueuePos;
+      myproc()->ramCtrlr[pageIndex].queuePos = precedingQueuePos ;
+     
     }
+    goto recheck;
   }
   cprintf("returning page number %d\n",pageIndex);
   return pageIndex;
 }
 
+uint min_queue_pos()
+{
+  uint min = 0xFFFFFFFF;
+  int i;
+  for (i=0;i<MAX_PSYC_PAGES;i++)
+  {
+    if(myproc()->ramCtrlr[i].queuePos <= min)
+      min = myproc()->ramCtrlr[i].queuePos;
+  }
+return min;
+}
+
 int find_index_from_queuePos(uint pos_to_find)
 {
   int i;
+  uint max = 0;
+  int index = -1;
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if (myproc()->ramCtrlr[i].queuePos == pos_to_find)
-      return i;
-  }
-  return -1;
+    if (myproc()->ramCtrlr[i].queuePos <= pos_to_find)
+    {
+      if (myproc()->ramCtrlr[i].queuePos >= max)
+      {
+        max = myproc()->ramCtrlr[i].queuePos;
+        index =i;
+      }
+    }
+  } 
+return index;
 }
 
 /**
@@ -510,21 +537,6 @@ void update_proc_counters(struct proc *p)
       {
         *pte &= ~PTE_A; // turn off PTE_A flag
         p->ramCtrlr[i].accessCount |= (1 << 31);
-/*#ifdef AQ
-        cprintf("accessed page %d\n\n\n",i);
-        uint queuePos = p->ramCtrlr[i].queuePos;
-        int index = find_index_from_queuePos(queuePos);
-        if (queuePos < myproc()->queuePos) 
-        {
-      
-          int preceding = find_index_from_queuePos(queuePos + 1);
-          if (preceding != -1)
-          {
-            myproc()->ramCtrlr[preceding].queuePos--;
-          }
-          myproc()->ramCtrlr[index].queuePos++;
-        }
-#endif*/
       }
     }
   }
