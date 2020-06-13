@@ -112,6 +112,7 @@ found:
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe *)sp;
   p->loadOrderCounter = 0;
+  p->queuePos = 0;
   p->faultCounter = 0;
   p->countOfPagedOut = 0;
 
@@ -260,6 +261,7 @@ int fork(void)
 
     copySwapFile(curproc, np);
     np->loadOrderCounter = curproc->loadOrderCounter;
+    np->queuePos = curproc->queuePos;
   }
 
   np->parent = curproc;

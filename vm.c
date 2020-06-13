@@ -296,8 +296,12 @@ recheck:
   {
     if ((myproc()->ramCtrlr[i].state == USED) && (myproc()->ramCtrlr[i].loadOrder <= loadOrder))
     {
+      #ifdef VERBOSE_PRINT
+        cprintf("index %d loadOrder is %d\n",i,myproc()->ramCtrlr[i].loadOrder);
+      #endif
       pageIndex = i;
       loadOrder = myproc()->ramCtrlr[i].loadOrder;
+
     }
   }
 
@@ -309,10 +313,14 @@ recheck:
     // If it is accessed, set it off, set the current load order and retest the SCFIFO.
     *pte &= ~PTE_A;
     myproc()->ramCtrlr[pageIndex].loadOrder = myproc()->loadOrderCounter++;
+    #ifdef VERBOSE_PRINT
+      cprintf("index %d is already accessed. going to recheck\n", pageIndex);
+    #endif
     goto recheck;
   }
-
-  cprintf("returning %d \n", pageIndex);
+  #ifdef VERBOSE_PRINT
+    cprintf("returning %d \n", pageIndex);
+  #endif
   return pageIndex;
 }
 
@@ -321,38 +329,40 @@ int getAQ()
   pte_t *pte;
   int i = 0;
   int pageIndex = -1;
-  uint loadOrder = 0xFFFFFFFF;
+  uint foundqueuePos = 0;
 #ifdef VERBOSE_PRINT
   cprintf("getting page using AQ \n");
 #endif
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
 
-    if ((myproc()->ramCtrlr[i].state == USED) && (myproc()->ramCtrlr[i].queuePos < loadOrder))
+    if ((myproc()->ramCtrlr[i].state == USED) && (myproc()->ramCtrlr[i].queuePos >= foundqueuePos))
     {
       pageIndex = i;
-      loadOrder = myproc()->ramCtrlr[i].queuePos;
+      foundqueuePos = myproc()->ramCtrlr[i].queuePos;
+      cprintf("queuePos for %x is: %d\n",myproc()->ramCtrlr[i].userPageVAddr,myproc()->ramCtrlr[i].queuePos);
+      cprintf("page index: %d\n", find_index_from_queuePos(myproc()->ramCtrlr[i].queuePos));
     }
   }
   pte = walkpgdir(myproc()->ramCtrlr[pageIndex].pgdir, (char *)myproc()->ramCtrlr[pageIndex].userPageVAddr, 0);
 
   if (*pte & PTE_A)
   {
-
     *pte &= ~PTE_A;
     //very time a page gets accessed, it should switch places with the page
     //preceding it the queue (unless it is already in the first place)
-    if (loadOrder > 0) // 1?
+    if (foundqueuePos < myproc()->queuePos) // 1?
     {
-      uint curpos = myproc()->ramCtrlr[pageIndex].queuePos;
-      int preceding = find_index_from_queuePos(curpos - 1);
+      
+      int preceding = find_index_from_queuePos(foundqueuePos + 1);
       if (preceding != -1)
       {
-        myproc()->ramCtrlr[preceding].queuePos++;
+        myproc()->ramCtrlr[preceding].queuePos--;
       }
-      myproc()->ramCtrlr[pageIndex].queuePos--;
+      myproc()->ramCtrlr[pageIndex].queuePos++;
     }
   }
+  cprintf("returning page number %d\n",pageIndex);
   return pageIndex;
 }
 
@@ -437,7 +447,7 @@ int getLAPA()
 #ifdef VERBOSE_PRINT
   cprintf("returning page %d \n", pageIndex);
 #endif
-
+  cprintf("returning %d \n", pageIndex);
   return pageIndex;
 }
 
@@ -477,6 +487,21 @@ void update_proc_counters(struct proc *p)
       {
         *pte &= ~PTE_A; // turn off PTE_A flag
         p->ramCtrlr[i].accessCount |= (1 << 31);
+/*#ifdef AQ
+        cprintf("accessed page %d\n\n\n",i);
+        uint queuePos = p->ramCtrlr[i].queuePos;
+        int index = find_index_from_queuePos(queuePos);
+        if (queuePos < myproc()->queuePos) 
+        {
+      
+          int preceding = find_index_from_queuePos(queuePos + 1);
+          if (preceding != -1)
+          {
+            myproc()->ramCtrlr[preceding].queuePos--;
+          }
+          myproc()->ramCtrlr[index].queuePos++;
+        }
+#endif*/
       }
     }
   }
@@ -542,6 +567,7 @@ void addToRamCtrlr(pde_t *pgdir, uint v_addr)
   myproc()->ramCtrlr[freeLocation].userPageVAddr = v_addr;
   myproc()->ramCtrlr[freeLocation].loadOrder = myproc()->loadOrderCounter++;
   myproc()->ramCtrlr[freeLocation].accessCount = 0;
+  myproc()->ramCtrlr[freeLocation].queuePos = myproc()->queuePos++;
 #ifdef LAPA
   myproc()->ramCtrlr[freeLocation].accessCount = 0xffffffff;
 #else

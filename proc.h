@@ -85,6 +85,7 @@ struct proc
   struct pagecontroller fileCtrlr[MAX_TOTAL_PAGES - MAX_PSYC_PAGES];
   struct pagecontroller ramCtrlr[MAX_PSYC_PAGES];
   uint loadOrderCounter; //load/creation
+  uint queuePos;
 };
 
 // Process memory is laid out contiguously, low addresses first:
