@@ -428,6 +428,13 @@ void scheduler(void)
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
+#if (defined(LAPA) || defined(NFU) || defined(AQ))
+
+      if ((p->state != ZOMBIE) && (p->state != EMBRYO))
+      {
+        update_proc_counters(p);
+      }
+#endif
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;

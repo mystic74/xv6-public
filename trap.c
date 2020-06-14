@@ -53,9 +53,9 @@ void trap(struct trapframe *tf)
       ticks++;
       wakeup(&ticks);
       release(&tickslock);
-#if (defined(LAPA) || defined(NFU))
-      update_all_counters(); //defined in proc.c due to ptable usage
-#endif
+      // #if (defined(LAPA) || defined(NFU) || defined(AQ))
+      //       update_all_counters(); //defined in proc.c due to ptable usage
+      // #endif
     }
     lapiceoi();
     break;
