@@ -831,11 +831,10 @@ int readFromSwapFile(struct proc *p, char *buffer, uint placeOnFile, uint size)
   return fileread(p->swapFile, buffer, size);
 }
 
-int getFreeSlot(struct proc *p)
+int get_free_ram_page(struct proc *p)
 {
-  int maxStructCount = (MAX_TOTAL_PAGES - MAX_PSYC_PAGES);
   int i;
-  for (i = 0; i < maxStructCount; i++)
+  for (i = 0; i < (MAX_TOTAL_PAGES - MAX_PSYC_PAGES); i++)
   {
     if (p->fileCtrlr[i].state == NOTUSED)
       return i;
@@ -845,7 +844,7 @@ int getFreeSlot(struct proc *p)
 
 int writePageToFile(struct proc *p, int userPageVAddr, pde_t *pgdir)
 {
-  int freePlace = getFreeSlot(p);
+  int freePlace = get_free_ram_page(p);
   int retInt = writeToSwapFile(p, (char *)userPageVAddr, PGSIZE * freePlace, PGSIZE);
   if (retInt == -1)
     return -1;
@@ -868,6 +867,12 @@ void fix_cur_queue(struct proc *p)
   }
 }
 
+/***
+ * Find the page from the file.
+ * Loop on the file pages, and find the right virtual address,
+ * once found, in the same offset, get the page from the swap file in the buffer, and set it the RAM PAGES (!!!)
+ * 
+ * */
 int readPageFromFile(struct proc *p, int ramCtrlrIndex, int userPageVAddr, char *buff)
 {
   int maxStructCount = (MAX_TOTAL_PAGES - MAX_PSYC_PAGES);

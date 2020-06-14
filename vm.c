@@ -243,7 +243,13 @@ int loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
   return 0;
 }
 
-int getPagePAddr(int userPageVAddr, pde_t *pgdir)
+/***
+ * get the real address for the page, after both walkpgdir and PTE_ADDR
+ * v_addr - The virtual address saved
+ * pgdir - the pgdir for the vaddr
+ * 
+ * */
+int get_page_physical_addr(int v_addr, pde_t *pgdir)
 {
   pte_t *pte;
 
@@ -255,7 +261,7 @@ int getPagePAddr(int userPageVAddr, pde_t *pgdir)
   return PTE_ADDR(*pte);
 }
 
-void fixPagedOutPTE(int userPageVAddr, pde_t *pgdir)
+void set_page_swapped(int userPageVAddr, pde_t *pgdir)
 {
   pte_t *pte;
   pte = walkpgdir(pgdir, (int *)userPageVAddr, 0);
@@ -270,13 +276,17 @@ void fixPagedOutPTE(int userPageVAddr, pde_t *pgdir)
 /**
  * 
  * Getting the virtual address, set the PTE and update the CR3 register
- *   
+ * 
+ * This function removes the PT_PG bit, and sets the bits as a present and user address.
+ * Will be used when returning to the ram pages.
+ * 
+ * Will set the bits, then or with the physical one, and write to CR3 reg
  * */
-void fixPagedInPTE(int userPageVAddr, int pagePAddr, pde_t *pgdir)
+void set_page_present(int v_addr, int phys_addr, pde_t *pgdir)
 {
   pte_t *pte;
   // Get the physical address
-  pte = walkpgdir(pgdir, (int *)userPageVAddr, 0);
+  pte = walkpgdir(pgdir, (int *)v_addr, 0);
 
   if (!pte)
   {
@@ -284,13 +294,13 @@ void fixPagedInPTE(int userPageVAddr, int pagePAddr, pde_t *pgdir)
   }
   if (*pte & PTE_P)
   {
-    panic("PAGE IN REMAP!");
+    panic("remap");
   }
   *pte |= PTE_P | PTE_W | PTE_U; //Turn on needed bits
 
   *pte &= ~PTE_PG; //Turn off secondary storage bits
 
-  *pte |= pagePAddr; //Map PTE to the new Page
+  *pte |= phys_addr; //Map PTE to the new Page
 
   lcr3(V2P(myproc()->pgdir)); //refresh CR3 register
 }
@@ -571,22 +581,27 @@ int getPageFromFile(int cr2)
   if (outIndex >= 0)
   {
     // We have a free index in our ram pages
-    fixPagedInPTE(userPageVAddr, V2P(newPg), myproc()->pgdir);
+    set_page_present(userPageVAddr, V2P(newPg), myproc()->pgdir);
     readPageFromFile(myproc(), outIndex, userPageVAddr, (char *)userPageVAddr);
     return 1; //Operation was successful
   }
-  // No room in pages, find the page to swap
-  myproc()->countOfPagedOut++;
-  outIndex = getPageOutIndex(); //select a page to swap to file
 
+  // Page swap! add one to the counter
+  myproc()->countOfPagedOut++;
+  
+  // Find the next page to swap, save it a side and write it too file.
+  outIndex = getPageOutIndex();
   struct pagecontroller outPage = myproc()->ramCtrlr[outIndex];
-  fixPagedInPTE(userPageVAddr, V2P(newPg), myproc()->pgdir);
+  // Setting the page as P and not PG
+  set_page_present(userPageVAddr, V2P(newPg), myproc()->pgdir);
   readPageFromFile(myproc(), outIndex, userPageVAddr, buff); //automatically adds to ramctrlr
-  int outPagePAddr = getPagePAddr(outPage.userPageVAddr, outPage.pgdir);
+  
+  
+  int out_p_addr = get_page_physical_addr(outPage.userPageVAddr, outPage.pgdir);
   memmove(newPg, buff, PGSIZE);
   writePageToFile(myproc(), outPage.userPageVAddr, outPage.pgdir);
-  fixPagedOutPTE(outPage.userPageVAddr, outPage.pgdir);
-  char *v = P2V(outPagePAddr);
+  set_page_swapped(outPage.userPageVAddr, outPage.pgdir);
+  char *v = P2V(out_p_addr);
   kfree(v); //free swapped page
 
   return 1;
@@ -615,12 +630,12 @@ void swap(pde_t *pgdir, uint userPageVAddr)
   myproc()->countOfPagedOut++;
   int outIndex = getPageOutIndex();
 
-  int outPagePAddr = getPagePAddr(myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
+  int outPagePAddr = get_page_physical_addr(myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
   writePageToFile(myproc(), myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
   char *v = P2V(outPagePAddr);
   kfree(v); //free swapped page
   myproc()->ramCtrlr[outIndex].state = NOTUSED;
-  fixPagedOutPTE(myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
+  set_page_swapped(myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
   addToRamCtrlr(pgdir, userPageVAddr);
 }
 
