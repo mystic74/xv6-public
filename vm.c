@@ -253,7 +253,7 @@ int get_page_physical_addr(int v_addr, pde_t *pgdir)
 {
   pte_t *pte;
 
-  pte = walkpgdir(pgdir, (int *)userPageVAddr, 0);
+  pte = walkpgdir(pgdir, (int *)v_addr, 0);
   if (!pte) //uninitialized page table
   {
     return -1;
@@ -305,12 +305,17 @@ void set_page_present(int v_addr, int phys_addr, pde_t *pgdir)
   lcr3(V2P(myproc()->pgdir)); //refresh CR3 register
 }
 
+
+/**
+ * Chec to see if the page is marked as secondary
+ * */
 int pageIsInFile(int userPageVAddr, pde_t *pgdir)
 {
   pte_t *pte;
   pte = walkpgdir(pgdir, (char *)userPageVAddr, 0);
   return (*pte & PTE_PG); //PAGE IS IN FILE
 }
+
 
 int getSCFIFO()
 {
@@ -343,7 +348,6 @@ recheck:
 
   if (*pte & PTE_A)
   {
-    cprintf("accessed\n\n\n");
     // If it is accessed, set it off, set the current load order and retest the SCFIFO.
     *pte &= ~PTE_A;
     myproc()->ramCtrlr[pageIndex].loadOrder = myproc()->loadOrderCounter++;
@@ -378,8 +382,10 @@ recheck:
     {
       pageIndex = i;
       foundqueuePos = myproc()->ramCtrlr[i].queuePos;
+      #ifdef VERBOSE_PRINT
       cprintf("queuePos for %x is: %d\n",myproc()->ramCtrlr[i].userPageVAddr,myproc()->ramCtrlr[i].queuePos);
       cprintf("page index: %d\n", find_index_from_queuePos(myproc()->ramCtrlr[i].queuePos));
+      #endif
     }
   }
   pte = walkpgdir(myproc()->ramCtrlr[pageIndex].pgdir, (char *)myproc()->ramCtrlr[pageIndex].userPageVAddr, 0);
@@ -395,17 +401,28 @@ recheck:
       
       int preceding = find_index_from_queuePos(foundqueuePos-1);
       uint precedingQueuePos = myproc()->ramCtrlr[preceding].queuePos;
+      #ifdef VERBOSE_PRINT
       cprintf("-----changing queuePos for index %d from %d to %d------\n",pageIndex,foundqueuePos,precedingQueuePos);
+      #endif
       myproc()->ramCtrlr[preceding].queuePos = foundqueuePos;
       myproc()->ramCtrlr[pageIndex].queuePos = precedingQueuePos ;
      
     }
     goto recheck;
   }
+  #ifdef VERBPSE_PRINT
   cprintf("returning page number %d\n",pageIndex);
+  #endif
   return pageIndex;
 }
 
+
+/**
+ * 
+ * Find the minimal value in the queue.
+ * 
+ * Returns -1 if not found (in unsigned, same though.)
+ * */
 uint min_queue_pos()
 {
   uint min = 0xFFFFFFFF;
@@ -418,6 +435,12 @@ uint min_queue_pos()
 return min;
 }
 
+/**
+ * 
+ * Find the maximal index that contains a value that is either bigger or equal to the index asked
+ * 
+ * Returns -1 if not found
+ * */
 int find_index_from_queuePos(uint pos_to_find)
 {
   int i;
@@ -511,6 +534,13 @@ int getLAPA()
   return pageIndex;
 }
 
+
+/**
+ * 
+ * Returns the page index for the next page out.
+ * The page out scheme is according to the compilation.
+ * 
+ * */
 int getPageOutIndex()
 {
 #ifdef VERBOSE_PRINT
@@ -547,6 +577,17 @@ void update_proc_counters(struct proc *p)
       {
         *pte &= ~PTE_A; // turn off PTE_A flag
         p->ramCtrlr[i].accessCount |= (1 << 31);
+
+if (p->ramCtrlr[i].queuePos > min_queue_pos()) 
+    {
+         int preceding = find_index_from_queuePos(p->ramCtrlr[i].queuePos -1);
+      uint precedingQueuePos = myproc()->ramCtrlr[preceding].queuePos;
+      #ifdef VERBOSE_PRINT
+      cprintf("-----changing queuePos for index %d from %d to %d------\n",i,p->ramCtrlr[i].queuePos,precedingQueuePos);
+      #endif
+      myproc()->ramCtrlr[preceding].queuePos =  myproc()->ramCtrlr[i].queuePos;
+      myproc()->ramCtrlr[i].queuePos = precedingQueuePos ;
+    }
       }
     }
   }
