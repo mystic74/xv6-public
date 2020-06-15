@@ -653,5 +653,8 @@ void procdump(void)
 
     cprintf("\n");
   }
-  cprintf("%d/%d free pages in the system\n",get_num_of_free_pages(), getTotalPages());
+
+#ifdef VERBOSE_PRINT
+  cprintf("%d/%d free pages in the system\n", get_num_of_free_pages(), getTotalPages());
+#endif
 }
