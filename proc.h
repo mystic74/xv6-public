@@ -55,8 +55,8 @@ struct pagecontroller
 {
   enum page_struct_state state;
   pde_t *pgdir;
-  uint userPageVAddr;
-  uint accessCount;
+  uint user_page_vaddr;
+  uint access_counter;
   uint loadOrder;
   uint queuePos;
 };
@@ -82,8 +82,8 @@ struct proc
 
   //Swap file. must initiate with create swap file
   struct file *swapFile; //page file
-  struct pagecontroller fileCtrlr[MAX_TOTAL_PAGES - MAX_PSYC_PAGES];
-  struct pagecontroller ramCtrlr[MAX_PSYC_PAGES];
+  struct pagecontroller file_pages[MAX_TOTAL_PAGES - MAX_PSYC_PAGES];
+  struct pagecontroller ram_pages[MAX_PSYC_PAGES];
   uint loadOrderCounter; //load/creation
   uint queuePos;
 };

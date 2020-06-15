@@ -36,7 +36,7 @@ void initSwapStructs(struct proc *p)
 {
   int i;
   for (i = 0; i < MAX_TOTAL_PAGES - MAX_PSYC_PAGES; i++)
-    p->fileCtrlr[i].state = NOTUSED;
+    p->file_pages[i].state = NOTUSED;
 }
 
 // Must be called with interrupts disabled to avoid the caller being
@@ -132,26 +132,26 @@ found:
     int i;
     for (i = 0; i < MAX_TOTAL_PAGES - MAX_PSYC_PAGES; i++)
     {
-      p->fileCtrlr[i].accessCount = 0;
-      p->fileCtrlr[i].loadOrder = 0;
-      p->fileCtrlr[i].pgdir = 0;
-      p->fileCtrlr[i].queuePos = 0;
-      p->fileCtrlr[i].state = NOTUSED;
-      p->fileCtrlr[i].userPageVAddr = 0;
+      p->file_pages[i].access_counter = 0;
+      p->file_pages[i].loadOrder = 0;
+      p->file_pages[i].pgdir = 0;
+      p->file_pages[i].queuePos = 0;
+      p->file_pages[i].state = NOTUSED;
+      p->file_pages[i].user_page_vaddr = 0;
     }
 
     for (i = 0; i < MAX_PSYC_PAGES; i++)
     {
 #ifdef LAPA
-      p->ramCtrlr[i].accessCount = 0xffffffff;
+      p->ram_pages[i].access_counter = 0xffffffff;
 #else
-      p->ramCtrlr[i].accessCount = 0;
+      p->ram_pages[i].access_counter = 0;
 #endif
-      p->ramCtrlr[i].loadOrder = 0;
-      p->ramCtrlr[i].pgdir = 0;
-      p->ramCtrlr[i].queuePos = 0;
-      p->ramCtrlr[i].state = NOTUSED;
-      p->ramCtrlr[i].userPageVAddr = 0;
+      p->ram_pages[i].loadOrder = 0;
+      p->ram_pages[i].pgdir = 0;
+      p->ram_pages[i].queuePos = 0;
+      p->ram_pages[i].state = NOTUSED;
+      p->ram_pages[i].user_page_vaddr = 0;
     }
   }
   return p;
@@ -249,14 +249,14 @@ int fork(void)
     // Copy all the ram pages, will need COW changes..
     for (i = 0; i < MAX_PSYC_PAGES; i++)
     {
-      np->ramCtrlr[i] = curproc->ramCtrlr[i]; // Get the list
-      np->ramCtrlr[i].pgdir = np->pgdir;
+      np->ram_pages[i] = curproc->ram_pages[i]; // Get the list
+      np->ram_pages[i].pgdir = np->pgdir;
     }
 
     for (i = 0; i < MAX_TOTAL_PAGES - MAX_PSYC_PAGES; i++)
     {
-      np->fileCtrlr[i] = curproc->fileCtrlr[i];
-      np->fileCtrlr[i].pgdir = np->pgdir;
+      np->file_pages[i] = curproc->file_pages[i];
+      np->file_pages[i].pgdir = np->pgdir;
     }
 
     copySwapFile(curproc, np);
@@ -368,9 +368,9 @@ int wait(void)
         p->pid = 0;
         int i;
         for (i = 0; i < MAX_PSYC_PAGES; i++)
-          p->ramCtrlr[i].state = NOTUSED;
+          p->ram_pages[i].state = NOTUSED;
         for (i = 0; i < MAX_TOTAL_PAGES - MAX_PSYC_PAGES; i++)
-          p->fileCtrlr[i].state = NOTUSED;
+          p->file_pages[i].state = NOTUSED;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
@@ -428,7 +428,7 @@ void scheduler(void)
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
-#if (defined(LAPA) || defined(NFU) || defined(AQ))
+#if (defined(LAPA) || defined(NFUA) || defined(AQ))
 
       if ((p->state != ZOMBIE) && (p->state != EMBRYO))
       {
@@ -591,7 +591,7 @@ int getPagedOutAmout(struct proc *p)
 
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if (p->fileCtrlr[i].state == USED)
+    if (p->file_pages[i].state == USED)
       amout++;
   }
   return amout;

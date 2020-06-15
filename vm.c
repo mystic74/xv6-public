@@ -305,7 +305,6 @@ void set_page_present(int v_addr, int phys_addr, pde_t *pgdir)
   lcr3(V2P(myproc()->pgdir)); //refresh CR3 register
 }
 
-
 /**
  * Chec to see if the page is marked as secondary
  * */
@@ -316,14 +315,13 @@ int pageIsInFile(int userPageVAddr, pde_t *pgdir)
   return (*pte & PTE_PG); //PAGE IS IN FILE
 }
 
-
 int getSCFIFO()
 {
   pte_t *pte;
   int i = 0;
   int pageIndex;
   uint loadOrder;
-#ifdef VERBOSE_PRINT
+#ifdef DEBUG_PRINT
   cprintf("getting page using SCFIFO \n");
 #endif
 
@@ -332,33 +330,32 @@ recheck:
   loadOrder = 0xFFFFFFFF;
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if ((myproc()->ramCtrlr[i].state == USED) && (myproc()->ramCtrlr[i].loadOrder <= loadOrder))
+    if ((myproc()->ram_pages[i].state == USED) && (myproc()->ram_pages[i].loadOrder <= loadOrder))
     {
-      #ifdef VERBOSE_PRINT
-        cprintf("index %d loadOrder is %d\n",i,myproc()->ramCtrlr[i].loadOrder);
-      #endif
+#ifdef DEBUG_PRINT
+      cprintf("index %d loadOrder is %d\n", i, myproc()->ramCtrlr[i].loadOrder);
+#endif
       pageIndex = i;
-      loadOrder = myproc()->ramCtrlr[i].loadOrder;
-
+      loadOrder = myproc()->ram_pages[i].loadOrder;
     }
   }
 
   // Check to see if the ram page is in accessed mode or not
-  pte = walkpgdir(myproc()->ramCtrlr[pageIndex].pgdir, (char *)myproc()->ramCtrlr[pageIndex].userPageVAddr, 0);
+  pte = walkpgdir(myproc()->ram_pages[pageIndex].pgdir, (char *)myproc()->ram_pages[pageIndex].user_page_vaddr, 0);
 
   if (*pte & PTE_A)
   {
     // If it is accessed, set it off, set the current load order and retest the SCFIFO.
     *pte &= ~PTE_A;
-    myproc()->ramCtrlr[pageIndex].loadOrder = myproc()->loadOrderCounter++;
-    #ifdef VERBOSE_PRINT
-      cprintf("index %d is already accessed. going to recheck\n", pageIndex);
-    #endif
+    myproc()->ram_pages[pageIndex].loadOrder = myproc()->loadOrderCounter++;
+#ifdef DEBUG_PRINT
+    cprintf("index %d is already accessed. going to recheck\n", pageIndex);
+#endif
     goto recheck;
   }
-  #ifdef VERBOSE_PRINT
-    cprintf("returning %d \n", pageIndex);
-  #endif
+#ifdef DEBUG_PRINT
+  cprintf("returning %d \n", pageIndex);
+#endif
   return pageIndex;
 }
 
@@ -369,7 +366,7 @@ int getAQ()
   int pageIndex;
   uint foundqueuePos;
 
-#ifdef VERBOSE_PRINT
+#ifdef DEBUG_PRINT
   cprintf("getting page using AQ \n");
 #endif
 recheck:
@@ -378,44 +375,42 @@ recheck:
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
 
-    if ((myproc()->ramCtrlr[i].state == USED) && (myproc()->ramCtrlr[i].queuePos >= foundqueuePos))
+    if ((myproc()->ram_pages[i].state == USED) && (myproc()->ram_pages[i].queuePos >= foundqueuePos))
     {
       pageIndex = i;
-      foundqueuePos = myproc()->ramCtrlr[i].queuePos;
-      #ifdef VERBOSE_PRINT
-      cprintf("queuePos for %x is: %d\n",myproc()->ramCtrlr[i].userPageVAddr,myproc()->ramCtrlr[i].queuePos);
-      cprintf("page index: %d\n", find_index_from_queuePos(myproc()->ramCtrlr[i].queuePos));
-      #endif
+      foundqueuePos = myproc()->ram_pages[i].queuePos;
+#ifdef DEBUG_PRINT
+      cprintf("queuePos for %x is: %d\n", myproc()->ram_pages[i].user_page_vaddr, myproc()->ram_pages[i].queuePos);
+      cprintf("page index: %d\n", find_index_from_queuePos(myproc()->ram_pages[i].queuePos));
+#endif
     }
   }
-  pte = walkpgdir(myproc()->ramCtrlr[pageIndex].pgdir, (char *)myproc()->ramCtrlr[pageIndex].userPageVAddr, 0);
+  pte = walkpgdir(myproc()->ram_pages[pageIndex].pgdir, (char *)myproc()->ram_pages[pageIndex].user_page_vaddr, 0);
 
   if (*pte & PTE_A)
   {
-    
+
     *pte &= ~PTE_A;
     //very time a page gets accessed, it should switch places with the page
     //preceding it the queue (unless it is already in the first place)
-    if (foundqueuePos > min_queue_pos()) 
+    if (foundqueuePos > min_queue_pos())
     {
-      
-      int preceding = find_index_from_queuePos(foundqueuePos-1);
-      uint precedingQueuePos = myproc()->ramCtrlr[preceding].queuePos;
-      #ifdef VERBOSE_PRINT
-      cprintf("-----changing queuePos for index %d from %d to %d------\n",pageIndex,foundqueuePos,precedingQueuePos);
-      #endif
-      myproc()->ramCtrlr[preceding].queuePos = foundqueuePos;
-      myproc()->ramCtrlr[pageIndex].queuePos = precedingQueuePos ;
-     
+
+      int preceding = find_index_from_queuePos(foundqueuePos - 1);
+      uint precedingQueuePos = myproc()->ram_pages[preceding].queuePos;
+#ifdef DEBUG_PRINT
+      cprintf("-----changing queuePos for index %d from %d to %d------\n", pageIndex, foundqueuePos, precedingQueuePos);
+#endif
+      myproc()->ram_pages[preceding].queuePos = foundqueuePos;
+      myproc()->ram_pages[pageIndex].queuePos = precedingQueuePos;
     }
     goto recheck;
   }
-  #ifdef VERBPSE_PRINT
-  cprintf("returning page number %d\n",pageIndex);
-  #endif
+#ifdef VERBPSE_PRINT
+  cprintf("returning page number %d\n", pageIndex);
+#endif
   return pageIndex;
 }
-
 
 /**
  * 
@@ -427,12 +422,12 @@ uint min_queue_pos()
 {
   uint min = 0xFFFFFFFF;
   int i;
-  for (i=0;i<MAX_PSYC_PAGES;i++)
+  for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if(myproc()->ramCtrlr[i].queuePos <= min)
-      min = myproc()->ramCtrlr[i].queuePos;
+    if (myproc()->ram_pages[i].queuePos <= min)
+      min = myproc()->ram_pages[i].queuePos;
   }
-return min;
+  return min;
 }
 
 /**
@@ -448,44 +443,46 @@ int find_index_from_queuePos(uint pos_to_find)
   int index = -1;
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if (myproc()->ramCtrlr[i].queuePos <= pos_to_find)
+    if (myproc()->ram_pages[i].queuePos <= pos_to_find)
     {
-      if (myproc()->ramCtrlr[i].queuePos >= max)
+      if (myproc()->ram_pages[i].queuePos >= max)
       {
-        max = myproc()->ramCtrlr[i].queuePos;
-        index =i;
+        max = myproc()->ram_pages[i].queuePos;
+        index = i;
       }
     }
-  } 
-return index;
+  }
+  return index;
 }
 
 /**
  * NFU + AGING
- * get the index for the page we should swap when using the NFU method.
+ * get the index for the page we should swap when using the NFUA method.
  * When a page is accessed we update the counter by shifting it right by one, and we add a 1 on the left.
  * If it isn't accessed (& PTE_A == 0) then we just shift by one.
  * 
  * The counter returned is the page with the lowest counter
  * */
-int getNFU()
+int getNFUA()
 {
   int i;
   int pageIndex = -1;
   uint minAccess = 0xffffffff; // All bits lit.
-#ifdef VERBOSE_PRINT
-  cprintf("getting page using NFU \n");
+#ifdef DEBUG_PRINT
+  cprintf("getting page using NFUA \n");
 #endif
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if ((myproc()->ramCtrlr[i].state == USED) &&
-        (myproc()->ramCtrlr[i].accessCount <= minAccess)) // Notice the <=, so that even if some page is all 1's, we get him and not -1.
+    if ((myproc()->ram_pages[i].state == USED) &&
+        (myproc()->ram_pages[i].access_counter <= minAccess)) // Notice the <=, so that even if some page is all 1's, we get him and not -1.
     {
-      minAccess = myproc()->ramCtrlr[i].accessCount;
+      minAccess = myproc()->ram_pages[i].access_counter;
       pageIndex = i;
     }
   }
+#ifdef DEBUG_PRINT
   cprintf("Getting index %d\n", pageIndex);
+#endif
   return pageIndex;
 }
 
@@ -503,7 +500,7 @@ unsigned int bit_count_simple(unsigned int value)
 
 /**
  * Least accessed page + AGING
- * get the index for the page we should swap when using the NFU method.
+ * get the index for the page we should swap when using the NFUA method.
  * When a page is accessed we update the counter by shifting it right by one, and we add a 1 on the left.
  * If it isn't accessed (& PTE_A == 0) then we just shift by one.
  * 
@@ -513,27 +510,28 @@ int getLAPA()
 {
   int i;
   int pageIndex = -1;
-  //  uint minAccess = 0xffffffff;
+  uint minAccess = 0xffffffff;
   uint shifted = 33; // 32 bits + 1.
-#ifdef VERBOSE_PRINT
+#ifdef DEBUG_PRINT
   cprintf("getting page using LAPA \n");
 #endif
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if ((myproc()->ramCtrlr[i].state == USED) && (bit_count_simple(myproc()->ramCtrlr[i].accessCount) <= shifted))
+    if ((myproc()->ram_pages[i].state == USED) &&
+        ((bit_count_simple(myproc()->ram_pages[i].access_counter) < shifted ||
+          ((bit_count_simple(myproc()->ram_pages[i].access_counter) == shifted) && (myproc()->ram_pages[i].access_counter) < minAccess))))
     {
-      shifted = bit_count_simple(myproc()->ramCtrlr[i].accessCount);
-      //minAccess = myproc()->ramCtrlr[i].accessCount;
+
+      shifted = bit_count_simple(myproc()->ram_pages[i].access_counter);
+      minAccess = myproc()->ram_pages[i].access_counter;
       pageIndex = i;
     }
   }
-#ifdef VERBOSE_PRINT
+#ifdef DEBUG_PRINT
   cprintf("returning page %d \n", pageIndex);
 #endif
-  cprintf("returning %d \n", pageIndex);
   return pageIndex;
 }
-
 
 /**
  * 
@@ -543,20 +541,20 @@ int getLAPA()
  * */
 int getPageOutIndex()
 {
-#ifdef VERBOSE_PRINT
+#ifdef DEBUG_PRINT
 
   cprintf("Got get page\n");
 #endif
 
 #ifdef SCFIFO
   return getSCFIFO();
-#elif LAPA
+#elif defined(LAPA)
   return getLAPA();
-#elif NFU
-  return getNFU();
-#elif AQ
+#elif defined(NFUA)
+  return getNFUA();
+#elif defined(AQ)
   return getAQ();
-#elif NONE
+#elif defined(NONE)
   return 1;
 #else
   panic("Unrecognized paging machanism");
@@ -569,25 +567,25 @@ void update_proc_counters(struct proc *p)
   int i;
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if (p->ramCtrlr[i].state == USED)
+    if (p->ram_pages[i].state == USED)
     {
-      pte = walkpgdir(p->ramCtrlr[i].pgdir, (char *)p->ramCtrlr[i].userPageVAddr, 0);
-      p->ramCtrlr[i].accessCount = (p->ramCtrlr[i].accessCount >> 1);
+      pte = walkpgdir(p->ram_pages[i].pgdir, (char *)p->ram_pages[i].user_page_vaddr, 0);
+      p->ram_pages[i].access_counter = (p->ram_pages[i].access_counter >> 1);
       if (*pte & PTE_A)
       {
         *pte &= ~PTE_A; // turn off PTE_A flag
-        p->ramCtrlr[i].accessCount |= (1 << 31);
+        p->ram_pages[i].access_counter |= (1 << 31);
 
-if (p->ramCtrlr[i].queuePos > min_queue_pos()) 
-    {
-         int preceding = find_index_from_queuePos(p->ramCtrlr[i].queuePos -1);
-      uint precedingQueuePos = myproc()->ramCtrlr[preceding].queuePos;
-      #ifdef VERBOSE_PRINT
-      cprintf("-----changing queuePos for index %d from %d to %d------\n",i,p->ramCtrlr[i].queuePos,precedingQueuePos);
-      #endif
-      myproc()->ramCtrlr[preceding].queuePos =  myproc()->ramCtrlr[i].queuePos;
-      myproc()->ramCtrlr[i].queuePos = precedingQueuePos ;
-    }
+        if (p->ram_pages[i].queuePos > min_queue_pos())
+        {
+          int preceding = find_index_from_queuePos(p->ram_pages[i].queuePos - 1);
+          uint precedingQueuePos = myproc()->ram_pages[preceding].queuePos;
+#ifdef DEBUG_PRINT
+          cprintf("-----changing queuePos for index %d from %d to %d------\n", i, p->ramCtrlr[i].queuePos, precedingQueuePos);
+#endif
+          myproc()->ram_pages[preceding].queuePos = myproc()->ram_pages[i].queuePos;
+          myproc()->ram_pages[i].queuePos = precedingQueuePos;
+        }
       }
     }
   }
@@ -600,7 +598,7 @@ int getFreeRamCtrlrIndex()
   int i;
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if (myproc()->ramCtrlr[i].state == NOTUSED)
+    if (myproc()->ram_pages[i].state == NOTUSED)
       return i;
   }
   return -1; //NO ROOM IN RAMCTRLR
@@ -629,19 +627,18 @@ int getPageFromFile(int cr2)
 
   // Page swap! add one to the counter
   myproc()->countOfPagedOut++;
-  
+
   // Find the next page to swap, save it a side and write it too file.
   outIndex = getPageOutIndex();
-  struct pagecontroller outPage = myproc()->ramCtrlr[outIndex];
+  struct pagecontroller outPage = myproc()->ram_pages[outIndex];
   // Setting the page as P and not PG
   set_page_present(userPageVAddr, V2P(newPg), myproc()->pgdir);
   readPageFromFile(myproc(), outIndex, userPageVAddr, buff); //automatically adds to ramctrlr
-  
-  
-  int out_p_addr = get_page_physical_addr(outPage.userPageVAddr, outPage.pgdir);
+
+  int out_p_addr = get_page_physical_addr(outPage.user_page_vaddr, outPage.pgdir);
   memmove(newPg, buff, PGSIZE);
-  writePageToFile(myproc(), outPage.userPageVAddr, outPage.pgdir);
-  set_page_swapped(outPage.userPageVAddr, outPage.pgdir);
+  writePageToFile(myproc(), outPage.user_page_vaddr, outPage.pgdir);
+  set_page_swapped(outPage.user_page_vaddr, outPage.pgdir);
   char *v = P2V(out_p_addr);
   kfree(v); //free swapped page
 
@@ -653,16 +650,16 @@ void addToRamCtrlr(pde_t *pgdir, uint v_addr)
   int freeLocation = getFreeRamCtrlrIndex();
   if (freeLocation == -1)
     panic("no free location, should be one.");
-  myproc()->ramCtrlr[freeLocation].state = USED;
-  myproc()->ramCtrlr[freeLocation].pgdir = pgdir;
-  myproc()->ramCtrlr[freeLocation].userPageVAddr = v_addr;
-  myproc()->ramCtrlr[freeLocation].loadOrder = myproc()->loadOrderCounter++;
-  myproc()->ramCtrlr[freeLocation].accessCount = 0;
-  myproc()->ramCtrlr[freeLocation].queuePos = myproc()->queuePos++;
+  myproc()->ram_pages[freeLocation].state = USED;
+  myproc()->ram_pages[freeLocation].pgdir = pgdir;
+  myproc()->ram_pages[freeLocation].user_page_vaddr = v_addr;
+  myproc()->ram_pages[freeLocation].loadOrder = myproc()->loadOrderCounter++;
+  myproc()->ram_pages[freeLocation].access_counter = 0;
+  myproc()->ram_pages[freeLocation].queuePos = myproc()->queuePos++;
 #ifdef LAPA
-  myproc()->ramCtrlr[freeLocation].accessCount = 0xffffffff;
+  myproc()->ram_pages[freeLocation].access_counter = 0xffffffff;
 #else
-  myproc()->ramCtrlr[freeLocation].accessCount = 0;
+  myproc()->ram_pages[freeLocation].access_counter = 0;
 #endif
 }
 
@@ -671,12 +668,12 @@ void swap(pde_t *pgdir, uint userPageVAddr)
   myproc()->countOfPagedOut++;
   int outIndex = getPageOutIndex();
 
-  int outPagePAddr = get_page_physical_addr(myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
-  writePageToFile(myproc(), myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
+  int outPagePAddr = get_page_physical_addr(myproc()->ram_pages[outIndex].user_page_vaddr, myproc()->ram_pages[outIndex].pgdir);
+  writePageToFile(myproc(), myproc()->ram_pages[outIndex].user_page_vaddr, myproc()->ram_pages[outIndex].pgdir);
   char *v = P2V(outPagePAddr);
   kfree(v); //free swapped page
-  myproc()->ramCtrlr[outIndex].state = NOTUSED;
-  set_page_swapped(myproc()->ramCtrlr[outIndex].userPageVAddr, myproc()->ramCtrlr[outIndex].pgdir);
+  myproc()->ram_pages[outIndex].state = NOTUSED;
+  set_page_swapped(myproc()->ram_pages[outIndex].user_page_vaddr, myproc()->ram_pages[outIndex].pgdir);
   addToRamCtrlr(pgdir, userPageVAddr);
 }
 
@@ -701,7 +698,7 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
   if (!isNONEpolicy())
   {
-    if (PGROUNDUP(newsz) / PGSIZE > MAX_TOTAL_PAGES && myproc()->pid > 2)
+    if ((PGROUNDUP(newsz) / PGSIZE > MAX_TOTAL_PAGES) && (myproc()->pid > 2))
     {
       cprintf("proc is too big\n", PGROUNDUP(newsz) / PGSIZE);
       return 0;
@@ -709,11 +706,9 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   }
 
   a = PGROUNDUP(oldsz);
-  int i = 0; //debugging
   for (; a < newsz; a += PGSIZE)
   {
     mem = kalloc();
-    i++;
     if (mem == 0)
     {
       cprintf("allocuvm out of memory\n");
@@ -724,7 +719,7 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     mappages(pgdir, (char *)a, PGSIZE, V2P(mem), PTE_W | PTE_U);
     if (!isNONEpolicy() && myproc()->pid > 2)
     {
-#ifdef VERBOSE_PRINT
+#ifdef DEBUG_PRINT
       cprintf("PGROUNGUP %d oldsz :%d newsz:%d , i %d \n", PGROUNDUP(oldsz), oldsz, newsz, i);
 #endif
       if (getFreeRamCtrlrIndex() == -1)
@@ -737,7 +732,7 @@ int allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
       }
     }
   }
-#ifdef VERBOSE_PRINT
+#ifdef DEBUG_PRINT
 
   cprintf("Returning newsz : %d\n", newsz);
 #endif
@@ -753,9 +748,9 @@ void removeFromRamCtrlr(uint userPageVAddr, pde_t *pgdir)
   int i;
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    if (myproc()->ramCtrlr[i].state == USED && myproc()->ramCtrlr[i].userPageVAddr == userPageVAddr && myproc()->ramCtrlr[i].pgdir == pgdir)
+    if (myproc()->ram_pages[i].state == USED && myproc()->ram_pages[i].user_page_vaddr == userPageVAddr && myproc()->ram_pages[i].pgdir == pgdir)
     {
-      myproc()->ramCtrlr[i].state = NOTUSED;
+      myproc()->ram_pages[i].state = NOTUSED;
       return;
     }
   }
@@ -768,9 +763,9 @@ void removeFromFileCtrlr(uint userPageVAddr, pde_t *pgdir)
   int i;
   for (i = 0; i < MAX_TOTAL_PAGES - MAX_PSYC_PAGES; i++)
   {
-    if (myproc()->fileCtrlr[i].state == USED && myproc()->fileCtrlr[i].userPageVAddr == userPageVAddr && myproc()->fileCtrlr[i].pgdir == pgdir)
+    if (myproc()->file_pages[i].state == USED && myproc()->file_pages[i].user_page_vaddr == userPageVAddr && myproc()->file_pages[i].pgdir == pgdir)
     {
-      myproc()->fileCtrlr[i].state = NOTUSED;
+      myproc()->file_pages[i].state = NOTUSED;
       return;
     }
   }
@@ -914,16 +909,17 @@ pte_t *cowuvm(pde_t *pgdir, uint sz)
 
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    if (*pte & PTE_P){
+    if (*pte & PTE_P)
+    {
       if (mappages(d, (void *)i, PGSIZE, pa, flags) < 0)
         goto bad;
     }
     else
     {
-       if (mappages_swapped(d, (void *)i, PGSIZE, pa, flags) < 0)
+      if (mappages_swapped(d, (void *)i, PGSIZE, pa, flags) < 0)
         goto bad;
     }
-    
+
     increment_count(pa);
   }
   lcr3(V2P(pgdir)); //flush TLB
@@ -1035,7 +1031,7 @@ create any required page table pages.
     memmove(new_mem, P2V(page_addr), PGSIZE);
 
     //change the page table entry to the new page
-    *pte = V2P(new_mem)|flags|PTE_P|PTE_U | PTE_W;
+    *pte = V2P(new_mem) | flags | PTE_P | PTE_U | PTE_W;
     // When changing a valid page table entry to another
     // valid page table entry, you may need to clear the TLB (as in the lcr3())
 

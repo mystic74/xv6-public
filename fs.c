@@ -836,7 +836,7 @@ int get_free_ram_page(struct proc *p)
   int i;
   for (i = 0; i < (MAX_TOTAL_PAGES - MAX_PSYC_PAGES); i++)
   {
-    if (p->fileCtrlr[i].state == NOTUSED)
+    if (p->file_pages[i].state == NOTUSED)
       return i;
   }
   return -1; //file is full
@@ -849,12 +849,12 @@ int writePageToFile(struct proc *p, int userPageVAddr, pde_t *pgdir)
   if (retInt == -1)
     return -1;
   //if reached here - data was successfully placed in file
-  p->fileCtrlr[freePlace].state = USED;
-  p->fileCtrlr[freePlace].userPageVAddr = userPageVAddr;
-  p->fileCtrlr[freePlace].pgdir = pgdir;
-  p->fileCtrlr[freePlace].accessCount = 0;
-  p->fileCtrlr[freePlace].loadOrder = 0;
-  p->fileCtrlr[freePlace].queuePos = 0;
+  p->file_pages[freePlace].state = USED;
+  p->file_pages[freePlace].user_page_vaddr = userPageVAddr;
+  p->file_pages[freePlace].pgdir = pgdir;
+  p->file_pages[freePlace].access_counter = 0;
+  p->file_pages[freePlace].loadOrder = 0;
+  p->file_pages[freePlace].queuePos = 0;
   return retInt;
 }
 
@@ -863,7 +863,7 @@ void fix_cur_queue(struct proc *p)
   int i = 0;
   for (i = 0; i < MAX_PSYC_PAGES; i++)
   {
-    p->ramCtrlr[i].queuePos++;
+    p->ram_pages[i].queuePos++;
   }
 }
 
@@ -880,18 +880,19 @@ int readPageFromFile(struct proc *p, int ramCtrlrIndex, int userPageVAddr, char 
   int retInt;
   for (i = 0; i < maxStructCount; i++)
   {
-    if (p->fileCtrlr[i].userPageVAddr == userPageVAddr)
+    if (p->file_pages[i].user_page_vaddr == userPageVAddr)
     {
       retInt = readFromSwapFile(p, buff, i * PGSIZE, PGSIZE);
       if (retInt == -1)
         break; //error in read
-      p->ramCtrlr[ramCtrlrIndex] = p->fileCtrlr[i];
-      p->ramCtrlr[ramCtrlrIndex].loadOrder = myproc()->loadOrderCounter++;
+      p->ram_pages[ramCtrlrIndex] = p->file_pages[i];
+      p->ram_pages[ramCtrlrIndex].loadOrder = myproc()->loadOrderCounter++;
 #ifdef AQ
-      p->ramCtrlr[ramCtrlrIndex].queuePos = 0;
       fix_cur_queue(p);
+      p->ram_pages[ramCtrlrIndex].queuePos = 0;
+
 #endif
-      p->fileCtrlr[i].state = NOTUSED;
+      p->file_pages[i].state = NOTUSED;
       return retInt;
     }
   }
@@ -910,7 +911,7 @@ void copySwapFile(struct proc *fromP, struct proc *toP)
   for (i = 0; i < MAX_TOTAL_PAGES - MAX_PSYC_PAGES; i++)
   {
 
-    if (fromP->fileCtrlr[i].state == USED)
+    if (fromP->file_pages[i].state == USED)
     {
       if (readFromSwapFile(fromP, buff, PGSIZE * i, PGSIZE) != PGSIZE)
         panic("CopySwapFile error on read");
