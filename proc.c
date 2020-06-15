@@ -297,7 +297,7 @@ void exit(void)
   struct proc *curproc = myproc();
   struct proc *p;
   int fd;
-
+  procdump();
   if (curproc == initproc)
     panic("init exiting");
 
@@ -641,7 +641,7 @@ void procdump(void)
 
     allocatedPages = PGROUNDUP(p->sz) / PGSIZE;
     pagedOutAmount = getPagedOutAmout(p);
-    cprintf("pid:%d state:%s allocated:%d paged_out%d f_counter:%d paged_out:%d name:%s", p->pid, state, allocatedPages,
+    cprintf("%d %s %d %d %d %d %s", p->pid, state, allocatedPages,
             pagedOutAmount, p->faultCounter, p->countOfPagedOut, p->name);
 
     if (p->state == SLEEPING)
@@ -653,5 +653,5 @@ void procdump(void)
 
     cprintf("\n");
   }
-  cprintf("%d/%d free pages in the system\n", getFreePages(), getTotalPages());
+  cprintf("%d/%d free pages in the system\n",get_num_of_free_pages(), getTotalPages());
 }

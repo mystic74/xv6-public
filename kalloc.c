@@ -31,12 +31,6 @@ struct
   //PHYSTOP is the maximum physical memory address xv6 supports
 } kmem;
 
-static int freePages = 0;
-
-int getFreePages()
-{
-  return freePages;
-}
 
 int getTotalPages()
 {
